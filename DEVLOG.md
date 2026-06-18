@@ -826,3 +826,24 @@ pm run test:hermes OK page 332950393234346; Groq API ping OK.
 - CEO: nhắn thử Page **SABO Media & Technology** (ID 332950393234346) — kỳ vọng chào Uyển Nhi trong ~45s (webhook hoặc inbox poller). App Meta **dev mode** → user ngoài tester cần add role hoặc chuyển Live.
 - Hermes qua tunnel: quick tunnel CF trả 404 tới :8642 — cần named tunnel hoặc debug cloudflared+WARP trước khi set HERMES_API_URL trên Render.
 - Push tiếp 5 file uncommitted (customer-safe-guard) nếu muốn prod có guard mới.
+
+## [2026-06-18] FIX Render deploy update_failed (runtime exit 1)
+
+### Nguyên nhân
+- **Build OK**, deploy **update_failed** với `nonZeroExit: 1` (không phải npm install).
+- Commit `8a4cfb0` import `src/responses/variation.js` nhưng **file chưa được track** → Node crash lúc `require` (poller → message handler → post-qualify-consult).
+- Commit `c3cc40f` đã thêm `src/inbox/dedupe.js` (fix thiếu module khác); prod vẫn rollback về `5f7b95e` cho đến khi deploy mới thành công.
+
+### Đã làm
+- Commit + push `8d03743`: add `src/responses/variation.js`.
+- `npm run deploy:render` (RENDER_API_KEY từ `D:\0.PROJECTS\.env.secrets`) → deploy `dep-d8pvrs4vikkc7393tfag` **live**.
+- Health: `https://sabo-messenger-bot.onrender.com/health` → 200, `gitCommit` = `8d03743...`.
+
+### Files changed
+- src/responses/variation.js (new)
+- DEVLOG.md
+
+### Ghi chú vận hành
+- Nếu `npm run deploy:render` báo không load được service: xóa `RENDER_API_KEY` stale trong shell trước khi chạy (script chỉ đọc `.env.secrets` khi biến chưa set lúc load module).
+- `git push`: cần `Remove-Item Env:GITHUB_TOKEN` nếu token invalid; dùng `gh auth setup-git`.
+
