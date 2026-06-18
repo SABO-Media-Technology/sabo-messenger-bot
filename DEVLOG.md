@@ -1,3 +1,27 @@
+## [2026-06-18] Ship post-qualify consult fix (`890decc`)
+
+### Đã làm
+- Fix `testSaboMtPostQualifyMultiTurn`: sau qualify, câu "tư vấn sơ về trang web" → consult mode, không hỏi lại SĐT/tên/ngành
+- `postQualifyFallback()` + `isPostQualify` routing trong `router.js`
+- `extract.js` — không parse câu need/consult thành `name`
+- `prompts.js` — rule "lead đủ → tư vấn, không hỏi lại contact"
+- `run-migration.cjs` — thêm `003_messenger_threads_lead_meta.sql` (cột `lead`/`meta`)
+
+### Files changed
+- src/ai/router.js, src/leads/extract.js, src/responses/prompts.js, src/session/persist.js
+- scripts/test-lead-flow.cjs, scripts/run-migration.cjs
+- docs/MESSENGER_BOT_REFERENCE.md, DEVLOG.md
+
+### Verify
+```bash
+npm run test:lead-flow   # all pass
+npm run test:replies     # 37 pass, 0 fail
+```
+
+### Chưa làm / handoff (CEO)
+- **Bắt buộc 1 lần:** `cd messenger-bot && npm run db:migrate` — apply `003` nếu session persist chưa có cột `lead`/`meta`
+- Retest live inbox SABO Media: flow website → tên → SĐT → hỏi tư vấn
+
 ## [2026-06-18] Session memory + post-qualify consult (CEO SABO Media bug)
 
 ### Root cause (audit)

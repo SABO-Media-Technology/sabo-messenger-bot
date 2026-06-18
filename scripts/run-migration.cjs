@@ -32,9 +32,7 @@ async function main() {
     process.exit(1);
   }
 
-  const sqlPath = path.join(__dirname, "..", "sql", "002_messenger_leads.sql");
-  const sql = fs.readFileSync(sqlPath, "utf8");
-
+  const sqlFiles = ["002_messenger_leads.sql", "003_messenger_threads_lead_meta.sql"];
   const client = new Client({
     connectionString: databaseUrl.replace(/\r?\n/g, "").trim(),
     ssl: { rejectUnauthorized: false },
@@ -42,11 +40,20 @@ async function main() {
 
   await client.connect();
   try {
-    await client.query(sql);
+    for (const file of sqlFiles) {
+      const sqlPath = path.join(__dirname, "..", "sql", file);
+      const sql = fs.readFileSync(sqlPath, "utf8");
+      await client.query(sql);
+      console.log(`OK: applied ${file}`);
+    }
     const { rows } = await client.query(
-      "select to_regclass('public.messenger_leads') as tbl",
+      `select
+        to_regclass('public.messenger_leads') as leads_tbl,
+        (select count(*) from information_schema.columns
+         where table_name = 'messenger_threads' and column_name in ('lead', 'meta')) as thread_meta_cols`,
     );
-    console.log("OK: messenger_leads =", rows[0]?.tbl || "missing");
+    console.log("OK: messenger_leads =", rows[0]?.leads_tbl || "missing");
+    console.log("OK: messenger_threads lead/meta cols =", rows[0]?.thread_meta_cols, "/ 2");
   } finally {
     await client.end();
   }

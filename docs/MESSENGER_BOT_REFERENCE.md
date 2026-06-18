@@ -378,7 +378,7 @@ curl "http://localhost:3000/webhook?hub.mode=subscribe&hub.verify_token=longsang
 npm run test:replies      # 11 pages + 5 vertical scenarios
 npm run test:lead-flow    # Lead extraction + vertical mapping + multi-turn
 npm run test:lead         # Live lead queue (needs Supabase)
-npm run db:migrate        # sql/001 + 002 on shared Supabase
+npm run db:migrate        # sql/002 + 003 on shared Supabase (needs DATABASE_URL)
 ```
 
 ### E2E Meta setup
