@@ -50,8 +50,10 @@ const { getUyenNhiBlock } = require("../src/personas/uyen-nhi");
 
 const { generateReply } = require("../src/ai/router");
 
-const { clearThread } = require("../src/session/store");
+const { clearThread, setSessionMeta } = require("../src/session/store");
 
+const { refusesName } = require("../src/leads/extract");
+const { buildGreetingForSession, shouldSkipNameField } = require("../src/leads/flow");
 const { matchTemplate } = require("../src/ai/templates");
 
 
@@ -156,16 +158,35 @@ function testVerticalMapping() {
 
 
 
+function testNameRefusalAndFbProfile() {
+  assert(refusesName("tao không muốn cho mày biết tên"), "detect name refusal");
+
+  const page = { projectSlug: "sabo-mt" };
+  const meta = { profileName: "Trần Minh", firstName: "Minh", nameRefused: true };
+  const greeting = buildGreetingForSession(page, meta);
+  assert(!/xin tên|cho em.*tên/i.test(greeting), "greeting no ask name when refused");
+  assert(/anh\/chị/i.test(greeting), "uses anh/chị");
+
+  const block = buildLeadPromptBlock(page, emptyProfile(), meta);
+  assert(block.includes("KHÔNG hỏi"), "lead block forbids ask name");
+  assert(!block.includes("THIẾU: tên"), "no missing name field");
+}
+
+function testProductInquiryTemplate() {
+  const hit = matchTemplate("ngoài học ra thì còn sản phẩm gì", { projectSlug: "ainewbie" });
+  assert(hit && /sđt|zalo/i.test(hit), "product inquiry asks contact");
+  assert(!hit.includes("0798893333"), "no hotline dump");
+
+  const budget = matchTemplate("ngân sách 100k làm web được không", { projectSlug: "sabo-mt" });
+  assert(budget && !/0798893333/.test(budget), "budget question no hotline");
+}
+
 function testBilliardsNoHotlineGreeting() {
-
   const page = { projectSlug: "sabo-billiards" };
-
   const contract = getPageContract(page);
-
   assert(!contract.greetingIntro.includes("0798893333"), "billiards greeting no hotline");
-
   assert(contract.persona === "venue", "billiards venue persona");
-
+  assert(!/xin tên/i.test(contract.greetingIntro), "billiards greeting no ask name");
 }
 
 
@@ -216,8 +237,25 @@ function testPromptHasPersonaAndVertical() {
 
 
 
-async function testMultiTurn() {
+async function testNameRefusalReply() {
+  loadPageRegistry();
+  const page = getPage("332950393234346"); // SABO M&T
+  const senderId = "test_name_refusal";
+  clearThread(page.id, senderId);
+  setSessionMeta(page.id, senderId, {
+    profileName: "Nguyễn Test",
+    firstName: "Test",
+    fbProfileFetched: true,
+    nameRefused: false,
+  });
 
+  const { text } = await generateReply(page, senderId, "tao không muốn cho mày biết tên");
+  assert(!/xin tên|cho em.*tên|không thể thấy tên/i.test(text), "no ask name on refusal");
+  assert(/anh\/chị/i.test(text), "uses anh/chị on refusal");
+  console.log("  name refusal + FB profile: OK");
+}
+
+async function testMultiTurn() {
   loadPageRegistry();
 
   const page = getPage("569671719553461"); // AI Newbie VN
@@ -226,36 +264,19 @@ async function testMultiTurn() {
 
   clearThread(page.id, senderId);
 
-
-
   const turns = [
-
-    { in: "Xin chào", expectLayer: "greeting-intro", check: (t) => /Uyển Nhi/i.test(t) },
-
-    { in: "Em tên Minh", check: (t) => t.length > 10 },
-
+    { in: "Xin chào", expectLayer: "greeting-intro", check: (t) => /Uyển Nhi/i.test(t) && !/xin tên/i.test(t) },
     { in: "0909888777", check: (t) => t.length > 10 },
-
     { in: "Em muốn học ChatGPT cho công việc marketing", check: (t) => t.length > 10 },
-
   ];
 
-
-
   for (const turn of turns) {
-
     const { text, layer } = await generateReply(page, senderId, turn.in);
-
     if (turn.expectLayer) assert(layer === turn.expectLayer, `layer ${turn.expectLayer}`);
-
     assert(turn.check(text), `reply ok for: ${turn.in}`);
-
   }
 
-
-
   console.log("  multi-turn AI Newbie VN: OK");
-
 }
 
 
@@ -274,6 +295,12 @@ async function main() {
 
   testVerticalMapping();
 
+  testNameRefusalAndFbProfile();
+  console.log("  FB profile + name refusal rules: OK");
+
+  testProductInquiryTemplate();
+  console.log("  product inquiry / budget no hotline: OK");
+
   testBilliardsNoHotlineGreeting();
 
   console.log("  billiards no-hotline greeting: OK");
@@ -286,6 +313,7 @@ async function main() {
 
   console.log("  persona + vertical in system prompt: OK");
 
+  await testNameRefusalReply();
   await testMultiTurn();
 
   console.log("\nAll lead-flow tests passed.\n");

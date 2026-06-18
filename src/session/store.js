@@ -4,8 +4,18 @@ const { emptyProfile } = require("../leads/flow");
 const MAX_THREADS = 5000;
 const TTL_MS = 24 * 60 * 60 * 1000;
 
-/** @type {Map<string, { messages: Array<{role:string,content:string}>, lead: object, updatedAt: number }>} */
+/** @type {Map<string, { messages: Array<{role:string,content:string}>, lead: object, meta: object, updatedAt: number }>} */
 const threads = new Map();
+
+function emptySessionMeta() {
+  return {
+    profileName: null,
+    firstName: null,
+    honorific: "anh/chị",
+    nameRefused: false,
+    fbProfileFetched: false,
+  };
+}
 
 function threadKey(pageId, senderId) {
   return `${pageId}:${senderId}`;
@@ -43,10 +53,37 @@ function getLeadProfile(pageId, senderId) {
   return { ...entry.lead };
 }
 
+function getSessionMeta(pageId, senderId) {
+  const key = threadKey(pageId, senderId);
+  const entry = threads.get(key);
+  if (!entry?.meta) return emptySessionMeta();
+  return { ...entry.meta };
+}
+
+function setSessionMeta(pageId, senderId, meta) {
+  prune();
+  const key = threadKey(pageId, senderId);
+  const entry = threads.get(key) || {
+    messages: [],
+    lead: emptyProfile(),
+    meta: emptySessionMeta(),
+    updatedAt: Date.now(),
+  };
+  entry.meta = { ...emptySessionMeta(), ...entry.meta, ...meta };
+  entry.updatedAt = Date.now();
+  threads.set(key, entry);
+  return entry.meta;
+}
+
 function setLeadProfile(pageId, senderId, lead) {
   prune();
   const key = threadKey(pageId, senderId);
-  const entry = threads.get(key) || { messages: [], lead: emptyProfile(), updatedAt: Date.now() };
+  const entry = threads.get(key) || {
+    messages: [],
+    lead: emptyProfile(),
+    meta: emptySessionMeta(),
+    updatedAt: Date.now(),
+  };
   entry.lead = { ...lead };
   entry.updatedAt = Date.now();
   threads.set(key, entry);
@@ -56,7 +93,12 @@ function setLeadProfile(pageId, senderId, lead) {
 function appendTurn(pageId, senderId, userText, assistantText) {
   prune();
   const key = threadKey(pageId, senderId);
-  const entry = threads.get(key) || { messages: [], lead: emptyProfile(), updatedAt: Date.now() };
+  const entry = threads.get(key) || {
+    messages: [],
+    lead: emptyProfile(),
+    meta: emptySessionMeta(),
+    updatedAt: Date.now(),
+  };
   entry.messages.push({ role: "user", content: userText });
   entry.messages.push({ role: "assistant", content: assistantText });
   entry.messages = trimHistory(entry.messages);
@@ -72,4 +114,14 @@ function stats() {
   return { activeThreads: threads.size };
 }
 
-module.exports = { getHistory, getLeadProfile, setLeadProfile, appendTurn, clearThread, stats };
+module.exports = {
+  getHistory,
+  getLeadProfile,
+  setLeadProfile,
+  getSessionMeta,
+  setSessionMeta,
+  emptySessionMeta,
+  appendTurn,
+  clearThread,
+  stats,
+};

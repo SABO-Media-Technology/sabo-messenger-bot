@@ -4,11 +4,23 @@ const { fetchRagContext } = require("./rag");
 const { getSystemPrompt } = require("../responses/prompts");
 const { getReplyText } = require("../responses/greeting");
 const { detectLeadIntent } = require("./intent");
-const { getHistory, appendTurn, getLeadProfile, setLeadProfile } = require("../session/store");
+const {
+  getHistory,
+  appendTurn,
+  getLeadProfile,
+  setLeadProfile,
+  getSessionMeta,
+  setSessionMeta,
+} = require("../session/store");
 const { queueLeadEvent } = require("../leads/queue");
-const { mergeLeadProfile } = require("../leads/extract");
-const { buildLeadPromptBlock, isLeadComplete, getGreetingForPage } = require("../leads/flow");
+const { mergeLeadProfile, refusesName } = require("../leads/extract");
+const {
+  buildLeadPromptBlock,
+  isLeadComplete,
+  buildGreetingForSession,
+} = require("../leads/flow");
 const { getPageContract, getVerticalId } = require("../strategies/page-contracts");
+const { fetchMessengerProfile, deriveHonorific } = require("../facebook/profile");
 const { logger } = require("../utils/logger");
 
 function buildPromptWithRag(basePrompt, ragContext) {
@@ -22,7 +34,7 @@ ${ragContext}`;
 function fallbackReply(page) {
   return (
     getReplyText(page.id) ||
-    `Cảm ơn anh/chị đã nhắn tin ${page.name}! Em ghi nhận rồi — cho em xin SĐT hoặc email để team SABO liên hệ sớm nhé?`
+    `Cảm ơn anh/chị đã nhắn tin ${page.name}! Em ghi nhận rồi — cho em xin SĐT hoặc Zalo để team SABO liên hệ sớm nhé?`
   );
 }
 
@@ -34,20 +46,56 @@ function isGetStartedLike(text) {
   return /tìm hiểu thêm|bắt đầu|get started/i.test(text || "");
 }
 
-function updateLeadFromMessage(page, senderId, userText) {
-  const prev = getLeadProfile(page.id, senderId);
-  const merged = mergeLeadProfile(prev, userText);
-  setLeadProfile(page.id, senderId, merged);
-  return merged;
+/**
+ * Fetch FB profile on first contact; auto-fill lead name from Graph API.
+ */
+async function ensureSessionProfile(page, senderId) {
+  const existing = getSessionMeta(page.id, senderId);
+  if (existing.fbProfileFetched) return existing;
+
+  const fb = await fetchMessengerProfile(senderId, page.accessToken);
+  const meta = {
+    profileName: fb?.name || null,
+    firstName: fb?.first_name || null,
+    honorific: deriveHonorific(fb),
+    nameRefused: false,
+    fbProfileFetched: true,
+  };
+  setSessionMeta(page.id, senderId, meta);
+
+  if (meta.profileName) {
+    const profile = getLeadProfile(page.id, senderId);
+    if (!profile.name) {
+      setLeadProfile(page.id, senderId, { ...profile, name: meta.profileName });
+    }
+  }
+
+  return getSessionMeta(page.id, senderId);
 }
 
-function maybeQueueCompleteLead(page, senderId, userText, layer, profile) {
+function updateLeadFromMessage(page, senderId, userText, sessionMeta) {
+  let meta = sessionMeta || getSessionMeta(page.id, senderId);
+  if (refusesName(userText)) {
+    meta = { ...meta, nameRefused: true };
+    setSessionMeta(page.id, senderId, meta);
+  }
+
+  const prev = getLeadProfile(page.id, senderId);
+  const merged = mergeLeadProfile(prev, userText);
+  if (meta.profileName && !merged.name && !meta.nameRefused) {
+    merged.name = meta.profileName;
+  }
+  setLeadProfile(page.id, senderId, merged);
+  return { profile: merged, sessionMeta: meta };
+}
+
+function maybeQueueCompleteLead(page, senderId, userText, layer, profile, sessionMeta) {
   const contract = getPageContract(page);
   if (profile.queued) return;
-  if (!isLeadComplete(profile, contract) && !detectLeadIntent(userText) && page.tier !== "t2") {
+  if (!isLeadComplete(profile, contract, sessionMeta) && !detectLeadIntent(userText) && page.tier !== "t2") {
     return;
   }
-  if (!isLeadComplete(profile, contract)) return;
+  if (!isLeadComplete(profile, contract, sessionMeta)) return;
 
   const next = { ...profile, queued: true };
   setLeadProfile(page.id, senderId, next);
@@ -72,14 +120,15 @@ async function generateReply(page, senderId, userText) {
     return { text: fallbackReply(page), layer: "fallback-empty" };
   }
 
-  const profile = updateLeadFromMessage(page, senderId, text);
-  const leadBlock = buildLeadPromptBlock(page, profile);
+  const sessionMeta = await ensureSessionProfile(page, senderId);
+  const { profile, sessionMeta: meta } = updateLeadFromMessage(page, senderId, text, sessionMeta);
+  const leadBlock = buildLeadPromptBlock(page, profile, meta);
 
   // Uyển Nhi greeting on first contact / get started
   if (isGreetingLike(text) || isGetStartedLike(text)) {
     const history = getHistory(page.id, senderId);
     if (history.length === 0) {
-      const greeting = getGreetingForPage(page);
+      const greeting = buildGreetingForSession(page, meta);
       appendTurn(page.id, senderId, text, greeting);
       maybeQueueLead(page, senderId, text, "greeting-intro");
       return { text: greeting, layer: "greeting-intro" };
@@ -90,14 +139,14 @@ async function generateReply(page, senderId, userText) {
   const templateHit = matchTemplate(text, page);
   if (templateHit) {
     maybeQueueLead(page, senderId, text, "template");
-    maybeQueueCompleteLead(page, senderId, text, "template", profile);
+    maybeQueueCompleteLead(page, senderId, text, "template", profile, meta);
     return { text: templateHit, layer: "template" };
   }
 
   if (!isLlmConfigured()) {
     const fb = fallbackReply(page);
     maybeQueueLead(page, senderId, text, "fallback-no-llm");
-    maybeQueueCompleteLead(page, senderId, text, "fallback-no-llm", profile);
+    maybeQueueCompleteLead(page, senderId, text, "fallback-no-llm", profile, meta);
     return { text: fb, layer: "fallback-no-llm" };
   }
 
@@ -129,7 +178,14 @@ async function generateReply(page, senderId, userText) {
 
     appendTurn(page.id, senderId, text, reply);
     maybeQueueLead(page, senderId, text, layer);
-    maybeQueueCompleteLead(page, senderId, text, layer, getLeadProfile(page.id, senderId));
+    maybeQueueCompleteLead(
+      page,
+      senderId,
+      text,
+      layer,
+      getLeadProfile(page.id, senderId),
+      getSessionMeta(page.id, senderId),
+    );
 
     if (page.replyStrategy === "human-handoff" && page.tier === "t2") {
       const alreadyHasHandoff = /team sabo billiards|sẽ liên hệ/i.test(reply);
@@ -147,7 +203,7 @@ async function generateReply(page, senderId, userText) {
     });
     const fb = fallbackReply(page);
     maybeQueueLead(page, senderId, text, "fallback-error");
-    maybeQueueCompleteLead(page, senderId, text, "fallback-error", profile);
+    maybeQueueCompleteLead(page, senderId, text, "fallback-error", profile, meta);
     return { text: fb, layer: "fallback-error" };
   }
 }
@@ -166,4 +222,4 @@ function maybeQueueLead(page, senderId, userText, layer) {
   });
 }
 
-module.exports = { generateReply, maybeQueueLead };
+module.exports = { generateReply, maybeQueueLead, ensureSessionProfile };

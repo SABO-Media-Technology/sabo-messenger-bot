@@ -58,6 +58,20 @@ function extractName(text) {
   return null;
 }
 
+function refusesName(text) {
+  return /không (muốn|cho|nói|đưa).*tên|đừng hỏi tên|không xin tên|khỏi hỏi tên|tao không muốn cho/i.test(
+    text || "",
+  );
+}
+
+function extractZalo(text) {
+  const t = (text || "").trim();
+  const m = t.match(/zalo[:\s]*((?:\+?84|0)\d{8,10})/i);
+  if (m?.[1]) return m[1];
+  if (/^zalo$/i.test(t)) return null;
+  return null;
+}
+
 function looksLikeNeed(text) {
   const lower = (text || "").toLowerCase();
   if (lower.length < 8) return false;
@@ -139,8 +153,10 @@ function mergeLeadProfile(profile, text) {
   const phone = extractPhone(text);
   const email = extractEmail(text);
   const name = extractName(text);
+  const zalo = extractZalo(text);
 
   if (phone && !next.phone) next.phone = phone;
+  if (zalo && !next.phone) next.phone = zalo;
   if (email && !next.email) next.email = email;
   if (name && !next.name) next.name = name;
 
@@ -171,7 +187,9 @@ module.exports = {
   extractPhone,
   extractEmail,
   extractName,
+  extractZalo,
   mergeLeadProfile,
   hasContact,
   looksLikeNeed,
+  refusesName,
 };

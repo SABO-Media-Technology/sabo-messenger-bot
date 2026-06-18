@@ -13,7 +13,7 @@ const DEFAULT_GREETING =
 const PAGE_OVERRIDES = {
   "840807759121010": {
     greeting:
-      "Chào {{user_first_name}}! Em là Uyển Nhi — SABO Design. Cho em xin tên đầy đủ để xưng hô nhé?",
+      "Chào {{user_first_name}}! Em là Uyển Nhi — SABO Design. Anh/chị đang cần thiết kế loại nào ạ?",
   },
   "827460493786896": {
     greeting: "Xin chào {{user_first_name}}! SABO Web — thiết kế website giá tốt, chuẩn SEO.",
@@ -38,11 +38,11 @@ const PAGE_OVERRIDES = {
   },
   "569671719553461": {
     greeting:
-      "Chào {{user_first_name}}! Em là Uyển Nhi từ AI Newbie VN. Cho em xin tên để xưng hô nhé?",
+      "Chào {{user_first_name}}! Em là Uyển Nhi từ AI Newbie VN. Anh/chị đang quan tâm phần nào để em hỗ trợ ạ?",
   },
   "332950393234346": {
     greeting:
-      "Chào {{user_first_name}}! Em là Uyển Nhi — SABO Media & Technology. Cho em xin tên để xưng hô nhé?",
+      "Chào {{user_first_name}}! Em là Uyển Nhi — SABO Media & Technology. Anh/chị đang quan tâm dịch vụ nào ạ?",
   },
   "118356497898536": {
     greeting: "Xin chào {{user_first_name}}! SABO Billiards Vũng Tàu — hệ sinh thái billiards.",

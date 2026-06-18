@@ -84,6 +84,10 @@ function scoreReply(reply, page, testCase) {
 
   if (/tôi là (một )?ai|chatbot/i.test(text)) issues.push("tự nhận AI");
 
+  if (/xin tên|cho em.*tên|không thể thấy tên/i.test(lower) && !/xin tên.*facebook/i.test(lower)) {
+    issues.push("hỏi tên robotically");
+  }
+
 
 
   // No unsolicited hotline dump (except explicit hotline template)
@@ -105,13 +109,9 @@ function scoreReply(reply, page, testCase) {
 
 
   if (testCase.label === "pricing" || testCase.label === "services" || testCase.label === "demo") {
-
-    if (!/sđt|email|liên hệ|xin|cho em/i.test(lower)) {
-
-      issues.push("thiếu CTA xin contact");
-
+    if (!/sđt|email|zalo|liên hệ|xin|cho em|dịch vụ nào|loại|quan tâm/i.test(lower)) {
+      issues.push("thiếu qualify hoặc CTA contact");
     }
-
   }
 
 

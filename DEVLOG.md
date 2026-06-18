@@ -1,3 +1,38 @@
+## [2026-06-18] Sales UX — FB profile name + Highvision flow (CEO critique)
+
+### Root cause
+- Bot hỏi tên trước dù Facebook đã có profile → robotic, mất trust
+- User từ chối tên → bot nói "không thể thấy tên user" (sai — phải dùng Graph API)
+- Thứ tự interrogation: tên → budget lecture → hotline dump
+- Greeting "Cho em xin tên" thay vì qualify dịch vụ
+
+### Đã làm
+- `src/facebook/profile.js` — fetch `first_name,last_name,name` từ Graph API lúc session start
+- Session `meta`: profileName, firstName, honorific, nameRefused; auto-fill lead.name
+- Lead order đổi: **need → contact** (name optional từ FB); `refusesName()` respect từ chối
+- Greeting + templates Highvision-style: chào + giới thiệu + qualify; giá/ngân sách → scope trước SĐT
+- Forbidden phrases trong prompts + Uyển Nhi DNA
+- Tests: name refusal, product inquiry, budget 100k no hotline
+
+### Files changed
+- src/facebook/profile.js (new)
+- src/session/store.js, src/ai/router.js
+- src/leads/flow.js, src/leads/extract.js
+- src/strategies/page-contracts.js, src/personas/uyen-nhi.js
+- src/responses/prompts.js, greeting.js
+- src/ai/templates.js
+- scripts/test-lead-flow.cjs, scripts/test-replies.cjs
+- docs/MESSENGER_BOT_REFERENCE.md § Conversation UX
+
+### Verify
+```bash
+npm run test:lead-flow && npm run test:replies
+```
+
+### Chưa làm / handoff
+- CEO test live inbox SABO Media page sau deploy Render
+- Gender detection cho anh/chị riêng (hiện default `anh/chị` — đủ an toàn)
+
 ## [2026-06-18] Vertical segmentation — 5 business lanes (CEO strategic)
 
 ### Phân tích

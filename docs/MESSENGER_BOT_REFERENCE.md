@@ -208,11 +208,11 @@ Bot **không** dùng một script chung — mỗi **vertical** (business lane) c
 
 | Vertical | Pages (`projectSlug`) | Persona | Goal | Lead fields | CTA |
 |----------|----------------------|---------|------|-------------|-----|
-| `billiards-ops` | `sabo-billiards`, `sabo-arena` | venue staff | đặt bàn / giải | name, contact, need (intent) | hỏi SĐT — **không** dump hotline |
-| `sabo-mt-services` | `sabo-mt` (5 page M&T) | Uyển Nhi B2B | qualify chuyển đổi số | name, contact, business_type, need, timeline, budget | xin contact chủ động |
-| `ai-education` | `ainewbie`, `ai-art` | Uyển Nhi teacher | học AI + soft upsell SABO | name, contact, need (learning goal) | trả lời ngắn + xin SĐT/email |
-| `real-estate` | `vungtau` | property advisor | nhu cầu BĐS | name, contact, need, timeline | khu vực + SĐT |
-| `platform` | `sabohub` | Uyển Nhi product | demo/trial SABOHUB | name, contact, business_type, need | demo + use case |
+| `billiards-ops` | `sabo-billiards`, `sabo-arena` | venue staff | đặt bàn / giải | need, contact | hỏi SĐT/Zalo — **không** dump hotline |
+| `sabo-mt-services` | `sabo-mt` (5 page M&T) | Uyển Nhi B2B | qualify chuyển đổi số | need, contact, business_type, timeline, budget | qualify scope → xin SĐT/Zalo |
+| `ai-education` | `ainewbie`, `ai-art` | Uyển Nhi teacher | học AI + soft upsell SABO | need, contact | trả lời ngắn → qualify → SĐT/Zalo |
+| `real-estate` | `vungtau` | property advisor | nhu cầu BĐS | need, contact, timeline | khu vực + SĐT/Zalo |
+| `platform` | `sabohub` | Uyển Nhi product | demo/trial SABOHUB | need, contact, business_type | use case → SĐT/Zalo demo |
 
 **Code map:**
 
@@ -225,27 +225,53 @@ Bot **không** dùng một script chung — mỗi **vertical** (business lane) c
 
 **Forbidden (global):** không đưa hotline `0798893333` trừ khi khách hỏi rõ; không bảo "gọi điện" — team chủ động liên hệ sau khi có contact.
 
+### Conversation UX — sales flow tự nhiên (CEO 2026-06-18, tham chiếu Highvision)
+
+Bot phải hành xử như nhân viên sales VN thật, **không** interrogation robot.
+
+**Flow chuẩn:**
+
+1. Chào + giới thiệu dịch vụ + **một** câu qualify (loại/dịch vụ quan tâm)
+2. Khách hỏi giá/ngân sách → làm rõ scope/loại trước, không lecture budget
+3. Sẵn sàng báo giá → "Cho em xin SĐT (hoặc Zalo) để em gửi báo giá chi tiết nhé ạ"
+4. Có SĐT → có thể hỏi Zalo để gửi file báo giá
+
+**Facebook profile name (`src/facebook/profile.js`):**
+
+- Lần đầu message: `GET /{psid}?fields=first_name,last_name,name` với page token
+- Lưu `session.meta.profileName`, `firstName`, `honorific` (mặc định `anh/chị`)
+- Auto-fill `lead.name` từ FB — **không** hỏi "tên là gì"
+- Khách từ chối cho tên → `nameRefused: true`, chỉ xưng hô `anh/chị`
+
+**Cấm tuyệt đối trong reply:**
+
+- `em cần biết tên`, `cho em xin tên`, `không thể thấy tên user`
+- Dump hotline `0798893333` khi chưa được hỏi
+- Bảo khách "gọi điện" / "gọi hotline"
+
 ### Progressive lead collection (`src/leads/flow.js`)
 
-1. Session profile per `(pageId, PSID)` in `src/session/store.js`
-2. `mergeLeadProfile` (`src/leads/extract.js`) parse tên/SĐT/email từ text
+1. Session profile per `(pageId, PSID)` + `session.meta` (FB profile) in `src/session/store.js`
+2. `mergeLeadProfile` (`src/leads/extract.js`) parse SĐT/Zalo/email/need từ text; `refusesName()` detect từ chối
 3. `buildLeadPromptBlock` inject vào system prompt — hỏi **một** field thiếu
-4. **Complete** = có `name` + `contact` + `need` (subset theo contract)
+4. **Complete** = có `need` + `contact` (name optional — từ FB hoặc bỏ qua nếu refused)
 5. `queueLeadEvent` → `messenger_leads` + Telegram khi qualified / hot intent
 
 **Lead behavior (CEO policy 2026-06-18):**
 
 | Rule | Chi tiết |
 |------|----------|
-| Thu lead chủ động | Khi khách hỏi sản phẩm/dịch vụ/giá → trả lời ngắn + hỏi SĐT hoặc email |
+| Thu lead chủ động | Qualify nhu cầu trước → xin SĐT/Zalo gửi báo giá |
+| Tên khách | Lấy từ Facebook Graph API — không hỏi tên nếu đã có |
 | SABO gọi khách | Không bảo khách "gọi hotline" hay "liên hệ qua SĐT công ty" |
-| Hotline `0798893333` | Chỉ khi khách **hỏi rõ** hotline/số văn phòng, hoặc T2 human-handoff, hoặc menu "Gọi ngay" |
-| Layer 0 templates | `sản phẩm`/`giá` → lead capture; không dump hotline |
-| Thứ tự thu | name → contact (SĐT/email) → need (một field/lượt) |
+| Hotline `0798893333` | Chỉ khi khách **hỏi rõ** hotline/số văn phòng, hoặc menu "Gọi ngay" |
+| Layer 0 templates | `giá`/`ngân sách` → qualify scope; `sản phẩm` → list + qualify |
+| Thứ tự thu | **need → contact** (một field/lượt); name từ FB, không bắt buộc hỏi |
 
 ### Key files map
 
 ```
+src/facebook/profile.js         # Graph API PSID → profileName, honorific
 src/pages.js                    # 11 page IDs, tokens, strategy, ragTags
 src/strategies/page-contracts.js
 src/personas/uyen-nhi.js
