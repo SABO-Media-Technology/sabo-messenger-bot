@@ -27,6 +27,7 @@ app.get("/health", (_req, res) => {
 
   res.status(200).json({
     status: "ok",
+    gitCommit: process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT || null,
     pages: pages.length,
     tokensConfigured: configured,
     ai: {
