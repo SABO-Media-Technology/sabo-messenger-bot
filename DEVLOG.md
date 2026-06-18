@@ -22,6 +22,11 @@ npm run deploy:render
 curl https://sabo-messenger-bot.onrender.com/health
 ```
 
+### Ship result
+- Commit `9f4180b` pushed `origin/main`
+- Render deploy `dep-d8q0ag6q1p3s739b4rjg` → **live**
+- `/health` → `gitCommit: 9f4180bc5d281341d8aa9b604dda4c581c6e6b47`
+
 ---
 
 
