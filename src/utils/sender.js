@@ -1,5 +1,28 @@
+const crypto = require("crypto");
 const axios = require("axios");
 const { logger } = require("./logger");
+
+const SEND_DEDUPE_MS = 30_000;
+const recentSends = new Map();
+
+function sendDedupeKey(recipientId, text) {
+  const hash = crypto.createHash("sha1").update(String(text || "")).digest("hex").slice(0, 16);
+  return `${recipientId}:${hash}`;
+}
+
+function shouldSkipDuplicateSend(recipientId, text) {
+  const key = sendDedupeKey(recipientId, text);
+  const now = Date.now();
+  const last = recentSends.get(key);
+  if (last && now - last < SEND_DEDUPE_MS) return true;
+  recentSends.set(key, now);
+  if (recentSends.size > 2000) {
+    for (const [k, ts] of recentSends) {
+      if (now - ts > SEND_DEDUPE_MS) recentSends.delete(k);
+    }
+  }
+  return false;
+}
 const {
   getGreetingText,
   getPersistentMenu,
@@ -13,6 +36,11 @@ const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
  * Send a text message via Send API.
  */
 async function sendText(pageId, accessToken, recipientId, text) {
+  if (shouldSkipDuplicateSend(recipientId, text)) {
+    logger.info("message_send_deduped", { pageId, recipientId, chars: (text || "").length });
+    return { deduped: true };
+  }
+
   const url = `${GRAPH_BASE}/${pageId}/messages`;
   const body = {
     messaging_type: "RESPONSE",
@@ -142,4 +170,6 @@ module.exports = {
   setPersistentMenu,
   setupPageProfile,
   setupAllPages,
+  shouldSkipDuplicateSend,
+  sendDedupeKey,
 };

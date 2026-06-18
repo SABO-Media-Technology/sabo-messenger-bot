@@ -78,6 +78,7 @@ function buildEnvVars() {
     { key: "TELEGRAM_ADMIN_CHAT_ID", value: process.env.TELEGRAM_ADMIN_CHAT_ID },
     { key: "META_USER_ACCESS_TOKEN", value: process.env.META_USER_ACCESS_TOKEN },
     { key: "INBOX_POLLER_ENABLED", value: process.env.INBOX_POLLER_ENABLED ?? "true" },
+    { key: "CUSTOMER_SAFE_MODE", value: process.env.CUSTOMER_SAFE_MODE ?? "true" },
     { key: "BRAIN_RAG_ENABLED", value: process.env.BRAIN_RAG_ENABLED || "false" },
   ];
 
@@ -170,6 +171,11 @@ async function main() {
     }
   }
   if (!service) service = await findService();
+  if (!service && SERVICE_ID) {
+    throw new Error(
+      `Could not load service ${SERVICE_ID}. Run: npm run deploy:render (uses --use-system-ca) and verify RENDER_API_KEY.`,
+    );
+  }
   if (!service) {
     console.log("Creating Render service...");
     const created = await createService();

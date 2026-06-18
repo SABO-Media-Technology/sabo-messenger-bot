@@ -1,88 +1,359 @@
 /**
+
  * Post-qualify consultation helpers — contextual fallback when LLM unavailable.
- * Fallback only; primary path is Groq/OpenAI via router.
+
+ * Fallback only; primary path is Hermes/Groq/OpenAI via router.
+
  */
 
+
+
 const { buildHonorificAddress } = require("../facebook/profile");
+
 const {
+
   looksLikeConsultationQuestion,
+
   extractNeedUpdate,
+
   isNeedPivot,
+
 } = require("./extract");
+
+const { pickOpener, pickCloser, hashSeed } = require("../responses/variation");
+
+
 
 const PRICING_RE = /giá|bao nhiêu|price|cost|báo giá|quote|ngân sách|budget|\d+\s*tr\b/i;
 
+
+
+const GREETING_RE = /^(xin chào|chào|hello|hi|hey|alo|dạ)\b/i;
+
+const THANKS_RE = /cảm ơn|thank/i;
+
+const SHORT_ACK_RE = /^(ok|oke|vâng|ừ|uh|uhm|được|hiểu rồi)\b/i;
+
+
+
 function isPricingQuestion(text) {
+
   return PRICING_RE.test(text || "");
+
 }
+
+
+
+function isCasualGreeting(text) {
+
+  return GREETING_RE.test((text || "").trim());
+
+}
+
+
+
+function isThanksMessage(text) {
+
+  return THANKS_RE.test(text || "");
+
+}
+
+
+
+function isShortAck(text) {
+
+  return SHORT_ACK_RE.test((text || "").trim());
+
+}
+
+
+
+function messageRelatesToNeed(userText, need) {
+
+  const text = (userText || "").trim().toLowerCase();
+
+  if (!text || text.length < 8) return false;
+
+  if (isCasualGreeting(text) || isShortAck(text) || isThanksMessage(text)) return false;
+
+  if (isPricingQuestion(text) || looksLikeConsultationQuestion(text) || isNeedPivot(text)) {
+
+    return true;
+
+  }
+
+  const needWords = String(need || "")
+
+    .toLowerCase()
+
+    .split(/\s+/)
+
+    .filter((w) => w.length >= 4);
+
+  return needWords.some((w) => text.includes(w));
+
+}
+
+
 
 function pricingBallpark(need) {
+
   const n = (need || "").toLowerCase();
+
   if (/app|mobile|ứng dụng/i.test(n)) {
+
     return "app SME thường từ ~150tr (standalone) hoặc gói vertical 10–30tr setup + 3–10tr/tháng tùy module";
+
   }
+
   if (/website|web|trang|landing|bán hàng/i.test(n)) {
+
     return "website/landing thường 15–50tr tùy số trang, giỏ hàng, tích hợp thanh toán";
+
   }
+
   if (/automation|tự động|ai/i.test(n)) {
+
     return "automation/AI workflow báo theo số quy trình và tích hợp — thường từ vài chục triệu";
+
   }
+
   return "dự án chuyển đổi số SME thường 50–150tr (build) hoặc subscription vertical 10–30tr setup";
+
 }
 
-function consultSnippet(need) {
+
+
+function consultSnippet(need, seed = 0) {
+
   const n = (need || "").toLowerCase();
+
   if (/app|mobile|ứng dụng/i.test(n)) {
-    return "Với app SME, em gợi ý: (1) xác định 3–5 tính năng lõi, (2) chọn Flutter/React Native + backend Supabase, (3) pilot 4–8 tuần rồi mở rộng module.";
+
+    const tips = [
+
+      "App SME em hay gợi chốt vài tính năng lõi trước, pilot khoảng 4–8 tuần rồi mở rộng dần — Flutter + Supabase là combo hay dùng.",
+
+      "Làm app thì scope nhỏ, chạy nhanh quan trọng hơn làm đủ tính năng ngay — anh/chị có thể bắt đầu từ luồng đặt hàng hoặc quản khách.",
+
+      "Với app, em thường tư vấn khách pilot MVP trước, đo phản hồi thật rồi mới thêm module — đỡ tốn và dễ iterate.",
+
+    ];
+
+    return tips[seed % tips.length];
+
   }
+
   if (/website|web|trang|landing|bán hàng/i.test(n)) {
-    return "Với web bán hàng, em gợi ý: landing giới thiệu + form/Zalo, hoặc web có giỏ hàng + thanh toán — tùy mục tiêu doanh thu vs lead gen.";
+
+    const tips = [
+
+      "Web bán hàng có thể đi landing + form/Zalo thu lead, hoặc full giỏ hàng + thanh toán — tùy mục tiêu doanh thu hay thu khách trước.",
+
+      "Em hay gợi web SME bắt đầu từ trang giới thiệu + kênh liên hệ rõ, sau đó mới nâng giỏ hàng khi traffic ổn.",
+
+      "Website thì scope trang, tích hợp thanh toán và quản đơn là 3 điểm ảnh hưởng giá và timeline nhất.",
+
+    ];
+
+    return tips[seed % tips.length];
+
   }
-  return "Em có thể gợi ý scope và lộ trình triển khai phù hợp quy mô SME — ưu tiên MVP chạy nhanh rồi iterate.";
+
+  const tips = [
+
+    "Em có thể gợi scope và lộ trình phù hợp quy mô SME — ưu tiên bản chạy nhanh rồi iterate.",
+
+    "Tùy mục tiêu kinh doanh, em sẽ gợi hướng MVP hoặc gói vertical — team đã có SĐT để báo sát hơn.",
+
+  ];
+
+  return tips[seed % tips.length];
+
 }
+
+
+
+function buildCasualReply(address, text, seed) {
+
+  if (isThanksMessage(text)) {
+
+    const lines = [
+
+      `Dạ không có chi ${address}! Cần gì thêm cứ nhắn em nhé.`,
+
+      `Dạ vâng ạ! Anh/chị hỏi thêm gì em hỗ trợ tiếp.`,
+
+    ];
+
+    return lines[seed % lines.length];
+
+  }
+
+  if (isCasualGreeting(text) || isShortAck(text)) {
+
+    const lines = [
+
+      `Chào ${address}! Em vẫn ở đây — anh/chị cần hỏi thêm gì cứ nhắn nhé.`,
+
+      `Dạ chào ${address}! Em sẵn sàng tư vấn tiếp khi anh/chị cần ạ.`,
+
+      `Chào ${address}! Có gì thắc mắc về dự án cứ hỏi em nhé.`,
+
+    ];
+
+    return lines[seed % lines.length];
+
+  }
+
+  return null;
+
+}
+
+
 
 /**
+
  * Contextual post-qualify fallback — varies by user message intent.
+
  */
+
 function buildPostQualifyFallback(page, profile, sessionMeta, userText) {
+
   const address = buildHonorificAddress(sessionMeta);
+
   const need = (profile.need || "dự án").slice(0, 120);
+
   const text = (userText || "").trim();
 
+  const seed = hashSeed(`${sessionMeta.profileName || ""}:${text}`);
+
+
+
+  const casual = buildCasualReply(address, text, seed);
+
+  if (casual) return casual;
+
+
+
+  const opener = pickOpener(address, seed);
+
+  const closer = pickCloser(seed + 1);
+
+
+
   if (isPricingQuestion(text)) {
+
     const ballpark = pricingBallpark(need);
-    return `Dạ ${address}! Giá ${need} phụ thuộc scope cụ thể — ${ballpark}. Team đã có SĐT của anh/chị, sẽ gọi báo sát sau khi chốt vài câu hỏi (số trang/tính năng, tích hợp). Anh/chị muốn em note thêm điểm nào không ạ?`;
+
+    const lines = [
+
+      `${opener} Giá ${need} phụ thuộc scope cụ thể — ${ballpark}. Team đã có SĐT, sẽ gọi báo sát sau vài câu hỏi ngắn. ${closer}`,
+
+      `${opener} Về giá thì ${ballpark} — còn tùy tính năng và tích hợp nữa. Em note SĐT anh/chị rồi, team báo chi tiết qua call nhé.`,
+
+    ];
+
+    return lines[seed % lines.length];
+
   }
+
+
 
   if (looksLikeConsultationQuestion(text) || /tư vấn|giải thích|như thế nào|là gì/i.test(text)) {
-    const tip = consultSnippet(need);
-    return `Dạ ${address}! ${tip} Với nhu cầu "${need.slice(0, 60)}", team SABO sẽ liên hệ chi tiết hơn qua SĐT đã lưu — anh/chị cứ hỏi thêm em trả lời tiếp nhé!`;
+
+    const tip = consultSnippet(need, seed);
+
+    const lines = [
+
+      `${opener} ${tip} Team SABO đã có SĐT — sẽ liên hệ chi tiết hơn, anh/chị cứ hỏi thêm em trả lời tiếp nhé!`,
+
+      `${opener} ${tip} ${closer}`,
+
+    ];
+
+    return lines[seed % lines.length];
+
   }
+
+
 
   if (isNeedPivot(text)) {
+
     const updated = extractNeedUpdate(text, need) || text.slice(0, 80);
-    const tip = /app|mobile/i.test(updated) ? consultSnippet(updated) : consultSnippet(need);
-    return `Dạ ${address}, em ghi nhận anh/chị muốn đổi hướng sang: ${updated.slice(0, 80)}. ${tip} Team sẽ cập nhật hồ sơ và liên hệ báo giá phù hợp qua SĐT đã lưu ạ!`;
+
+    const tip = consultSnippet(updated, seed);
+
+    return `${opener} Em ghi nhận anh/chị muốn đổi sang ${updated.slice(0, 80)}. ${tip} Team sẽ cập nhật hồ sơ và liên hệ báo giá qua SĐT đã lưu ạ!`;
+
   }
 
-  const tip = consultSnippet(need);
-  return `Dạ ${address}! Về "${need.slice(0, 60)}": ${tip} Anh/chị cần em làm rõ phần nào thêm (giá, timeline, tính năng) ạ?`;
+
+
+  const tip = consultSnippet(need, seed);
+
+  const relates = messageRelatesToNeed(text, need);
+
+  const lines = relates
+
+    ? [
+
+        `${opener} Về "${need.slice(0, 60)}": ${tip} ${closer}`,
+
+        `${opener} Em hiểu anh/chị đang quan tâm ${need.slice(0, 50)} — ${tip}`,
+
+      ]
+
+    : [
+
+        `${opener} ${tip} ${closer}`,
+
+        `${opener} ${tip} Anh/chị cần em làm rõ phần nào thêm (giá, timeline, tính năng) ạ?`,
+
+      ];
+
+  return lines[seed % lines.length];
+
 }
+
+
 
 function buildPostQualifyPricingHint() {
+
   return `
+
 BÁO GIÁ SAU QUALIFY (khi khách hỏi giá):
+
 - Đưa ballpark + yếu tố ảnh hưởng giá — KHÔNG chỉ nói "team sẽ gọi".
+
 - Website/landing: ~15–50tr tùy trang, giỏ hàng, thanh toán.
+
 - App SME standalone: ~150tr+; vertical subscription: setup 10–30tr + 3–10tr/tháng.
+
 - Build pioneer dự án: ~50–150tr tùy scope.
+
+- Viết như chat Messenger: 2–4 câu tự nhiên, KHÔNG list (1)(2)(3) trừ khi khách xin breakdown chi tiết.
+
 - Kết: team đã có SĐT → báo sát sau call ngắn, nhưng vẫn cho khách cảm giác được tư vấn ngay.`.trim();
+
 }
 
+
+
 module.exports = {
+
   isPricingQuestion,
+
+  isCasualGreeting,
+
   buildPostQualifyFallback,
+
   buildPostQualifyPricingHint,
+
   pricingBallpark,
+
   consultSnippet,
+
 };
+
+

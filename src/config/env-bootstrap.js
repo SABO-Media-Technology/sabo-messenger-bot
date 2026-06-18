@@ -141,6 +141,7 @@ function bootstrapFromFiles() {
   }
 
   applyIfUnset("VERIFY_TOKEN", merged.MESSENGER_VERIFY_TOKEN || "longsang_messenger_bot_2026");
+  applyIfUnset("CUSTOMER_SAFE_MODE", merged.CUSTOMER_SAFE_MODE || "true");
 
   applyIfUnset("META_APP_ID", merged.META_APP_ID || merged.VITE_FACEBOOK_APP_ID || merged.FACEBOOK_APP_ID);
   applyIfUnset("META_APP_SECRET", merged.META_APP_SECRET || merged.FACEBOOK_APP_SECRET);

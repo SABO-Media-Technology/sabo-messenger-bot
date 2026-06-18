@@ -55,16 +55,90 @@ function testPostQualifyFallbackVaries() {
     "mày không tư vấn sơ về trang web à?",
   );
   const pricingReply = buildPostQualifyFallback(page, profile, meta, "giá cả như nào ?");
+  const greetReply = buildPostQualifyFallback(page, profile, meta, "xin chào");
 
   assert(consultReply !== pricingReply, "post-qualify fallback must vary by intent");
   assert(/giá|scope|tr\b|ngân sách|tùy/i.test(pricingReply), "pricing reply mentions factors");
   assert(/web|landing|giỏ|form/i.test(consultReply), "consult reply mentions web advice");
-  assert(!/scope và lộ trình triển khai phù hợp SME/.test(pricingReply), "no generic static loop text");
+  assert(!/\(1\)|\(2\)|\(3\)/.test(consultReply), "no numbered list in consult fallback");
+  assert(/chào|dạ|ạ/i.test(greetReply), "greeting reply is casual");
+  assert(!/xác định 3–5 tính năng/.test(greetReply), "greeting must not repeat app essay");
+  assert(!/Về "/.test(greetReply), "greeting must not use stale need quote opener");
+
+  const q1 = buildPostQualifyFallback(page, { ...profile, need: "Làm app mobile" }, meta, "app làm bao lâu");
+  const q2 = buildPostQualifyFallback(page, { ...profile, need: "Làm app mobile" }, meta, "giá app thế nào");
+  const q3 = buildPostQualifyFallback(page, { ...profile, need: "Làm app mobile" }, meta, "có làm được không");
+  const unique = new Set([q1, q2, q3]);
+  assert(unique.size >= 2, "different post-qualify questions should not all be identical");
+}
+
+function testPostQualifyGreetingNoStaleQuote() {
+  const page = { projectSlug: "sabo-mt" };
+  const profile = {
+    ...emptyProfile(),
+    need: "giờ tôi lại thích làm app rồi",
+    phone: "0961167717",
+    qualified: true,
+  };
+  const meta = { honorific: "anh/chị" };
+  const reply = buildPostQualifyFallback(page, profile, meta, "xin chào");
+  assert(!/giờ tôi lại thích làm app/i.test(reply), "greeting must not quote stale need pivot");
+  assert(/hỗ trợ|tư vấn|nhắn|hỏi/i.test(reply), "greeting offers continued help");
+  console.log("  post-qualify greeting no stale quote: OK");
 }
 
 function testNeedUpdateOnPivot() {
   const updated = extractNeedUpdate("giờ tôi lại thích làm app rồi", "Làm website bán hàng");
   assert(updated && /app/i.test(updated), "need updates on pivot to app");
+}
+
+async function testPostQualifyGreetingNoRepeatEssay() {
+  loadPageRegistry();
+  const page = getPage("332950393234346");
+  const senderId = "test_post_qualify_greeting";
+  clearThread(page.id, senderId);
+
+  const savedGroq = process.env.GROQ_API_KEY;
+  const savedOpenai = process.env.OPENAI_API_KEY;
+  delete process.env.GROQ_API_KEY;
+  delete process.env.OPENAI_API_KEY;
+
+  try {
+    setLeadProfile(
+      page.id,
+      senderId,
+      {
+        ...emptyProfile(),
+        need: "Làm website bán hàng",
+        phone: "0961167717",
+        qualified: true,
+        queued: true,
+      },
+      page.projectSlug,
+    );
+    setSessionMeta(page.id, senderId, { honorific: "anh/chị", fbProfileFetched: true });
+
+    const { text: pivotText } = await generateReply(
+      page,
+      senderId,
+      "giờ tôi lại thích làm app rồi",
+    );
+    assert(/app/i.test(pivotText), "pivot turn mentions app");
+
+    const { text: greetText, layer } = await generateReply(page, senderId, "xin chào");
+    assert(/chào|dạ|ạ/i.test(greetText), "greeting is casual");
+    assert(!/\(1\)|\(2\)|\(3\)/.test(greetText), "greeting has no numbered list");
+    assert(!/xác định 3–5 tính năng/.test(greetText), "greeting must not repeat app essay");
+    assert(
+      layer === "post-qualify-casual" || layer.includes("consult") || layer.includes("fallback"),
+      `expected casual/consult layer, got ${layer}`,
+    );
+  } finally {
+    if (savedGroq) process.env.GROQ_API_KEY = savedGroq;
+    if (savedOpenai) process.env.OPENAI_API_KEY = savedOpenai;
+  }
+
+  console.log("  post-qualify greeting no essay repeat: OK");
 }
 
 async function testPostQualifyPricingNotIdentical() {
@@ -326,6 +400,7 @@ async function main() {
   console.log("  post-qualify prompt block: OK");
   testPostQualifyFallbackVaries();
   console.log("  post-qualify fallback varies by intent: OK");
+  testPostQualifyGreetingNoStaleQuote();
   testNeedUpdateOnPivot();
   console.log("  need pivot web→app: OK");
   testVerticalMapping();
@@ -345,6 +420,7 @@ async function main() {
   await testNameRefusalReply();
   await testSaboMtPostQualifyMultiTurn();
   await testPostQualifyPricingNotIdentical();
+  await testPostQualifyGreetingNoRepeatEssay();
   await testMultiTurnAinewbie();
 
   console.log("\nAll lead-flow tests passed.\n");

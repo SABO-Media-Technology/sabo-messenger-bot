@@ -8,12 +8,15 @@
     "dev": "node --use-system-ca --watch src/index.js",
     "test:replies": "node --use-system-ca scripts/test-replies.cjs",
     "test:lead-flow": "node --use-system-ca scripts/test-lead-flow.cjs",
+    "test:dedupe": "node --use-system-ca scripts/test-dedupe.cjs",
+    "test:customer-safe": "node --use-system-ca scripts/test-customer-safe.cjs",
     "test:ollama": "node --use-system-ca scripts/test-ollama-reply.cjs",
     "test:hermes": "node --use-system-ca scripts/test-hermes-reply.cjs",
     "db:migrate": "node --use-system-ca scripts/run-migration.cjs",
     "test:lead": "node --use-system-ca scripts/test-lead-live.cjs",
     "e2e:meta": "node --use-system-ca scripts/e2e-meta-setup.cjs --production",
-    "deploy:render": "node --use-system-ca scripts/deploy-render.cjs"
+    "deploy:render": "node --use-system-ca scripts/deploy-render.cjs",
+    "test:customer-safe-e2e": "node --use-system-ca scripts/test-customer-safe-e2e.cjs"
   },
   "engines": {
     "node": ">=18"

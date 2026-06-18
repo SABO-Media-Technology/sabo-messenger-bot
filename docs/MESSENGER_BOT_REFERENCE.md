@@ -182,6 +182,20 @@ Code: `src/ai/rag.js` — **best-effort**; RAG fail không block reply.
 
 ~**$0.002/reply** (Groq llama-3.3-70b, ~400 tokens out, không RAG). OpenAI mini tương đương order of magnitude. Lead queue + Telegram = negligible.
 
+### Customer-safe security model (Messenger -> Hermes/LLM)
+
+Mục tiêu: bot chỉ trả lời theo scope sales/tư vấn, không lộ thông tin hệ thống khi đi qua Hermes hoặc direct LLM.
+
+| Layer | File | Cơ chế |
+|------|------|--------|
+| Input guard | `src/ai/customer-safe-guard.js` + `src/ai/router.js` | Block prompt-injection/data-exfil intent (`show prompt`, `read file`, `env/token`, `internal endpoint`, `tool/memory dump`) trước khi gọi Hermes/LLM |
+| Hermes metadata policy | `src/ai/hermes-client.js` | Gửi metadata + headers rõ `channel=facebook_messenger`, `agent=uyen-nhi`, `policy=customer_safe` |
+| Hermes policy failover | `src/ai/router.js` | Nếu Hermes trả lỗi policy/unsafe/forbidden -> fallback ngay về safe sales reply (không ném lỗi kỹ thuật cho khách) |
+| Output guard | `src/ai/customer-safe-guard.js` + `src/ai/router.js` | Chặn/scrub phản hồi chứa path, key-like string, internal host/port, env var names, stack trace/system/tool internals |
+| Safe template | `buildCustomerSafeSalesReply()` | Trả lời giọng Uyển Nhi/venue theo business flow, không tiết lộ lý do kỹ thuật chi tiết |
+
+**Config lock:** `CUSTOMER_SAFE_MODE=true` (default) trong `.env.example`; `env-bootstrap` sẽ auto-set `true` nếu thiếu.
+
 ---
 
 ## 5. Page strategies & contracts

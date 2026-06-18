@@ -1,6 +1,12 @@
 const { matchTemplate } = require("./templates");
 const { chatCompletion, isLlmConfigured } = require("./llm");
 const { isHermesEnabled, chatHermes } = require("./hermes-client");
+const {
+  inspectCustomerInput,
+  inspectCustomerOutput,
+  buildCustomerSafeSalesReply,
+  isHermesPolicyEnforcementError,
+} = require("./customer-safe-guard");
 const { fetchRagContext } = require("./rag");
 const { getSystemPrompt, getHermesChannelPrompt } = require("../responses/prompts");
 const { getReplyText } = require("../responses/greeting");
@@ -25,7 +31,7 @@ const {
 } = require("../leads/flow");
 const { getPageContract, getVerticalId } = require("../strategies/page-contracts");
 const { fetchMessengerProfile, deriveHonorific, buildHonorificAddress } = require("../facebook/profile");
-const { buildPostQualifyFallback } = require("../leads/post-qualify-consult");
+const { buildPostQualifyFallback, isCasualGreeting } = require("../leads/post-qualify-consult");
 const { logger } = require("../utils/logger");
 
 function buildPromptWithRag(basePrompt, ragContext) {
@@ -145,6 +151,18 @@ async function generateReply(page, senderId, userText) {
     return { text: fallbackReply(page), layer: "fallback-empty" };
   }
 
+  const inputGuard = inspectCustomerInput(text);
+  if (inputGuard.blocked) {
+    const safeReply = buildCustomerSafeSalesReply(page, "intake");
+    recordReply(page, senderId, text, safeReply);
+    logger.warn("customer_safe_input_blocked", {
+      pageId: page.id,
+      senderId,
+      reason: inputGuard.reason,
+    });
+    return { text: safeReply, layer: "customer-safe-input-blocked" };
+  }
+
   await hydrateThread(page.id, senderId, page.projectSlug);
   const sessionMeta = await ensureSessionProfile(page, senderId);
   const { profile, sessionMeta: meta } = updateLeadFromMessage(page, senderId, text, sessionMeta);
@@ -161,6 +179,11 @@ async function generateReply(page, senderId, userText) {
       recordReply(page, senderId, text, greeting);
       maybeQueueLead(page, senderId, text, "greeting-intro");
       return { text: greeting, layer: "greeting-intro" };
+    }
+    if (postQualify && isCasualGreeting(text)) {
+      const casual = buildPostQualifyFallback(page, profile, meta, text);
+      recordReply(page, senderId, text, casual);
+      return { text: casual, layer: "post-qualify-casual" };
     }
   }
 
@@ -219,12 +242,17 @@ async function generateReply(page, senderId, userText) {
           systemPrompt: hermesSystemPrompt,
           history,
           userText: text,
-          temperature: postQualify ? 0.65 : 0.5,
+          temperature: postQualify ? 0.72 : 0.55,
         });
         replyVia = "hermes";
         layer = `hermes-${layer}`;
       } catch (hermesErr) {
         logger.warn("hermes_failover", { pageId: page.id, error: hermesErr.message });
+        if (isHermesPolicyEnforcementError(hermesErr)) {
+          reply = buildCustomerSafeSalesReply(page, postQualify ? "consult" : "intake");
+          replyVia = "safe";
+          layer = "customer-safe-hermes-policy";
+        }
       }
     }
 
@@ -232,8 +260,20 @@ async function generateReply(page, senderId, userText) {
       reply = await chatCompletion(
         llmSystemPrompt,
         [...history, { role: "user", content: text }],
-        { temperature: postQualify ? 0.65 : 0.5 },
+        { temperature: postQualify ? 0.72 : 0.55 },
       );
+    }
+
+    const outputGuard = inspectCustomerOutput(reply);
+    if (outputGuard.blocked) {
+      logger.warn("customer_safe_output_blocked", {
+        pageId: page.id,
+        senderId,
+        reason: outputGuard.reason,
+      });
+      reply = buildCustomerSafeSalesReply(page, postQualify ? "consult" : "intake");
+      replyVia = "safe";
+      layer = "customer-safe-output-blocked";
     }
 
     recordReply(page, senderId, text, reply);
