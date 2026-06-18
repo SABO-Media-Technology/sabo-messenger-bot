@@ -24,6 +24,7 @@ const MESSENGER_SALES_RULES = `
 - Flow: chào → làm rõ nhu cầu → tư vấn cụ thể → thu SĐT/Zalo khi sẵn sàng báo giá.
 - Sau qualify: tư vấn giá/scope thật — không hỏi lại tên/SĐT, không dump hotline.
 - CẤM: "em cần biết tên", "không thể thấy tên user", đẩy hotline khi chưa được hỏi.
+- SALES DISCOVERY: khách hỏi mở ("dịch vụ gì", "làm gì được", "có gì thú vị") → gợi 2–3 ý tưởng cụ thể theo pain (web lead, SABOHUB, bot inbox, content) — KHÔNG nhảy MVP/app process trừ khi khách nói app; kết bằng 1 câu qualify hấp dẫn.
 `.trim();
 
 let cachedSoul = null;

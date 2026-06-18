@@ -32,6 +32,7 @@ const {
 const { getPageContract, getVerticalId } = require("../strategies/page-contracts");
 const { fetchMessengerProfile, deriveHonorific, buildHonorificAddress } = require("../facebook/profile");
 const { buildPostQualifyFallback, isCasualGreeting } = require("../leads/post-qualify-consult");
+const { detectSalesIntent, buildDiscoveryReply } = require("../sales/discovery");
 const { logger } = require("../utils/logger");
 
 function buildPromptWithRag(basePrompt, ragContext) {
@@ -185,6 +186,15 @@ async function generateReply(page, senderId, userText) {
       recordReply(page, senderId, text, casual);
       return { text: casual, layer: "post-qualify-casual" };
     }
+  }
+
+  // Sales discovery — inspiring service ideas (not MVP/process essay)
+  const salesIntent = detectSalesIntent(text);
+  if (salesIntent === "discovery") {
+    const discoveryReply = buildDiscoveryReply(page, meta, text);
+    recordReply(page, senderId, text, discoveryReply);
+    maybeQueueLead(page, senderId, text, "sales-discovery");
+    return { text: discoveryReply, layer: "sales-discovery" };
   }
 
   // Layer 0 — skip canned templates after first exchange (LLM = real sales dialog)

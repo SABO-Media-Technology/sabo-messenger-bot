@@ -31,11 +31,50 @@ const { refusesName } = require("../src/leads/extract");
 const { buildGreetingForSession, shouldSkipNameField } = require("../src/leads/flow");
 const { matchTemplate } = require("../src/ai/templates");
 const { buildPostQualifyFallback } = require("../src/leads/post-qualify-consult");
+const { detectSalesIntent, buildDiscoveryReply, isDiscoveryQuestion } = require("../src/sales/discovery");
 const { extractNeedUpdate } = require("../src/leads/extract");
 const { getHistory } = require("../src/session/store");
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
+}
+
+function testSalesDiscoveryIntent() {
+  assert(isDiscoveryQuestion("có dịch vụ công nghệ nào thú vị không?"), "discovery detect");
+  assert(isDiscoveryQuestion("bên em làm gì được"), "discovery làm gì");
+  assert(!isDiscoveryQuestion("giá website bao nhiêu"), "pricing not discovery");
+  assert(detectSalesIntent("giá website bao nhiêu") === "pricing", "pricing intent");
+
+  const page = { projectSlug: "sabo-mt" };
+  const meta = { honorific: "anh/chị" };
+  const reply = buildDiscoveryReply(page, meta, "có dịch vụ công nghệ nào thú vị không?");
+  assert(/website|lead|SABOHUB|bot|automation|chatbot/i.test(reply), "discovery mentions concrete services");
+  assert(!/^Với app, em thường tư vấn pilot MVP/i.test(reply), "no app MVP opener");
+  assert(!/cần em làm rõ phần nào/i.test(reply), "no weak qualify closer");
+  assert(/\?/.test(reply), "ends with engaging question");
+
+  const postQualifyReply = buildPostQualifyFallback(
+    page,
+    { ...emptyProfile(), need: "Làm app mobile", phone: "0909", qualified: true },
+    meta,
+    "có dịch vụ công nghệ nào thú vị không?",
+  );
+  assert(!/Với app, em thường tư vấn pilot MVP/i.test(postQualifyReply), "post-qualify discovery not app MVP");
+  assert(/website|lead|SABOHUB|bot|automation|chatbot/i.test(postQualifyReply), "post-qualify discovery has ideas");
+  console.log("  sales discovery intent + reply: OK");
+}
+
+async function testSalesDiscoveryRouter() {
+  loadPageRegistry();
+  const page = getPage("332950393234346");
+  const senderId = "test_sales_discovery";
+  clearThread(page.id, senderId);
+
+  const { text, layer } = await generateReply(page, senderId, "có dịch vụ công nghệ nào thú vị không?");
+  assert(layer === "sales-discovery", `expected sales-discovery layer, got ${layer}`);
+  assert(/website|lead|SABOHUB|bot|automation|chatbot/i.test(text), "router discovery has service ideas");
+  assert(!/^Với app, em thường tư vấn pilot MVP/i.test(text), "router discovery not app MVP essay");
+  console.log("  sales discovery router: OK");
 }
 
 function testPostQualifyFallbackVaries() {
@@ -400,6 +439,7 @@ async function main() {
   console.log("  post-qualify prompt block: OK");
   testPostQualifyFallbackVaries();
   console.log("  post-qualify fallback varies by intent: OK");
+  testSalesDiscoveryIntent();
   testPostQualifyGreetingNoStaleQuote();
   testNeedUpdateOnPivot();
   console.log("  need pivot web→app: OK");
@@ -418,6 +458,7 @@ async function main() {
   console.log("  persona + vertical in system prompt: OK");
 
   await testNameRefusalReply();
+  await testSalesDiscoveryRouter();
   await testSaboMtPostQualifyMultiTurn();
   await testPostQualifyPricingNotIdentical();
   await testPostQualifyGreetingNoRepeatEssay();

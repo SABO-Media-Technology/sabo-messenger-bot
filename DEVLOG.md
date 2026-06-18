@@ -1,3 +1,34 @@
+## [2026-06-18] Sales discovery skill — Uyển Nhi gợi ý dịch vụ (CEO complaint)
+
+### Vấn đề
+- Khách hỏi mở *"có dịch vụ công nghệ nào thú vị không?"* → bot trả lời essay MVP/app thay vì gợi ý ý tưởng sales.
+
+### Đã làm
+- `src/sales/discovery.js` — detect intent `discovery|pricing|scope|greeting|objection`; `buildDiscoveryReply()` hook pain → 2–3 offer cụ thể + 1 câu qualify
+- `src/sales/sabo-mt-catalog.js` — catalog SABO M&T (web lead, SABOHUB, bot/automation, content) theo vertical
+- `router.js` — layer `sales-discovery` trước template/LLM khi intent=discovery
+- `post-qualify-consult.js` — discovery route riêng; app MVP snippet chỉ khi message nói app
+- Prompts + `uyen-nhi-soul.js` — SALES_DISCOVERY rules cho Hermes/LLM
+- Test: `testSalesDiscoveryIntent`, `testSalesDiscoveryRouter` trong `test:lead-flow`
+
+### Files changed
+- src/sales/discovery.js (new)
+- src/sales/sabo-mt-catalog.js (new)
+- src/ai/router.js
+- src/leads/post-qualify-consult.js
+- src/responses/prompts.js
+- src/personas/uyen-nhi-soul.js
+- scripts/test-lead-flow.cjs
+- DEVLOG.md
+
+### Verify
+```bash
+npm run test:lead-flow && npm run test:customer-safe-e2e
+npm run deploy:render
+```
+
+---
+
 ## [2026-06-18] FIX duplicate reply — dedupe.js + Supabase 24h + poller session skip
 
 ### Root cause (không phải Supabase "điên")

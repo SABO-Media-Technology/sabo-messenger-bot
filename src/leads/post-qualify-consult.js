@@ -21,6 +21,7 @@ const {
 } = require("./extract");
 
 const { pickOpener, pickCloser, hashSeed } = require("../responses/variation");
+const { isDiscoveryQuestion, buildDiscoveryReply } = require("../sales/discovery");
 
 
 
@@ -124,11 +125,16 @@ function pricingBallpark(need) {
 
 
 
-function consultSnippet(need, seed = 0) {
+function messageMentionsApp(text) {
+  return /app|mobile|ứng dụng/i.test(text || "");
+}
+
+function consultSnippet(need, seed = 0, userText = "") {
 
   const n = (need || "").toLowerCase();
+  const text = (userText || "").toLowerCase();
 
-  if (/app|mobile|ứng dụng/i.test(n)) {
+  if (/app|mobile|ứng dụng/i.test(n) && messageMentionsApp(text)) {
 
     const tips = [
 
@@ -144,7 +150,7 @@ function consultSnippet(need, seed = 0) {
 
   }
 
-  if (/website|web|trang|landing|bán hàng/i.test(n)) {
+  if (/website|web|trang|landing|bán hàng/i.test(n) && /web|trang|landing|bán hàng|website/i.test(text)) {
 
     const tips = [
 
@@ -234,7 +240,9 @@ function buildPostQualifyFallback(page, profile, sessionMeta, userText) {
 
   if (casual) return casual;
 
-
+  if (isDiscoveryQuestion(text)) {
+    return buildDiscoveryReply(page, sessionMeta, text);
+  }
 
   const opener = pickOpener(address, seed);
 
@@ -262,7 +270,7 @@ function buildPostQualifyFallback(page, profile, sessionMeta, userText) {
 
   if (looksLikeConsultationQuestion(text) || /tư vấn|giải thích|như thế nào|là gì/i.test(text)) {
 
-    const tip = consultSnippet(need, seed);
+    const tip = consultSnippet(need, seed, text);
 
     const lines = [
 
@@ -282,7 +290,7 @@ function buildPostQualifyFallback(page, profile, sessionMeta, userText) {
 
     const updated = extractNeedUpdate(text, need) || text.slice(0, 80);
 
-    const tip = consultSnippet(updated, seed);
+    const tip = consultSnippet(updated, seed, text);
 
     return `${opener} Em ghi nhận anh/chị muốn đổi sang ${updated.slice(0, 80)}. ${tip} Team sẽ cập nhật hồ sơ và liên hệ báo giá qua SĐT đã lưu ạ!`;
 
@@ -290,7 +298,7 @@ function buildPostQualifyFallback(page, profile, sessionMeta, userText) {
 
 
 
-  const tip = consultSnippet(need, seed);
+  const tip = consultSnippet(need, seed, text);
 
   const relates = messageRelatesToNeed(text, need);
 

@@ -14,6 +14,7 @@ const { getUyenNhiBlock } = require("../personas/uyen-nhi");
 
 const { getPageContract, buildVerticalPromptBlock, getVerticalId } = require("../strategies/page-contracts");
 const { getUyenNhiSoulBlock, getMessengerChannelRules } = require("../personas/uyen-nhi-soul");
+const { buildSalesDiscoveryPromptBlock } = require("../sales/discovery");
 
 
 
@@ -58,6 +59,8 @@ QUY TẮC CHUNG:
 - Chỉ đưa hotline ${HOTLINE} khi khách HỎI RÕ "số hotline", "số văn phòng", "liên hệ trực tiếp".
 
 - Không bịa fact; nếu không chắc → hỏi thêm hoặc xin contact để team phản hồi.
+
+${buildSalesDiscoveryPromptBlock()}
 
 `.trim();
 
@@ -159,6 +162,8 @@ NGỮ CẢNH TRANG: ${projectCtx}`;
   if (contract.persona === "venue") {
     prompt = `KÊNH: facebook_messenger — nhân viên quán/giải bida (không corporate B2B).\n\n${prompt}`;
   }
+
+  prompt = `${prompt}\n\n${buildSalesDiscoveryPromptBlock()}`;
 
   if (leadBlock) {
     prompt = `${prompt}\n\n${leadBlock}`;
