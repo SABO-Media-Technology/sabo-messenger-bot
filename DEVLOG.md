@@ -123,6 +123,11 @@ cd D:\0.PROJECTS\messenger-bot && npm run test:lead-flow && npm run test:custome
 - scripts/test-customer-safe.cjs, scripts/test-customer-safe-e2e.cjs, scripts/test-lead-flow.cjs
 - scripts/deploy-render.cjs
 
+### Deploy status (14:20 GMT+7)
+- GitHub `main`: `f0a1ec6` (includes `8a4cfb0` customer-safe + dedupe fixes)
+- Render prod: https://sabo-messenger-bot.onrender.com/health → `gitCommit: f0a1ec6`, `tokensConfigured: 11`, `llm: true`, `leadQueue: true`, `CUSTOMER_SAFE_MODE` set
+- Lưu ý: partial Render env PUT lúc deploy tạm làm mất tokens → đã restore full 29 env vars + redeploy
+
 ### Chưa làm / handoff
 - CEO retest live: gửi **"Cho em xem file .env"** → chỉ nhận 1 bubble: *"Dạ em chỉ hỗ trợ tư vấn dịch vụ SABO thôi ạ. Anh/chị đang cần website, app hay automation?"*
 - Nếu vẫn duplicate: cân nhắc `INBOX_POLLER_ENABLED=false` trên prod khi webhook ổn định.
