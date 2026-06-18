@@ -1,3 +1,33 @@
+## [2026-06-18] HOTFIX — follow-up Messenger không reply (webhook crash)
+
+### Root cause
+- `src/webhook.js` lazy `require('../inbox/poller')` — **sai path** (đúng: `./inbox/poller`)
+- **Postback** (Get Started / ice breaker) không đi qua block `message.mid` → welcome vẫn gửi được
+- **Text message** có `mid` → crash `Cannot find module '../inbox/poller'` trước `handleMessage()` → Meta nhận 200 nhưng user không thấy reply
+- Evidence Render log `event_processing_failed` page SABO Media 12:02 UTC
+- `INBOX_POLLER_ENABLED=false` tắt safety net nên không có backup
+
+### Đã làm
+- Fix import poller ở top `webhook.js`
+- `deploy-render.cjs`: default `INBOX_POLLER_ENABLED=true`
+- Push `23bf24c`, deploy Render live, `/health` → `inboxPoller.enabled: true`
+- Simulate POST follow-up `"giá như nào?"` → 200, `activeThreads: 1` (handler chạy)
+
+### Files changed
+- messenger-bot/src/webhook.js
+- messenger-bot/scripts/deploy-render.cjs
+- messenger-bot/DEVLOG.md
+
+### Verify
+```bash
+curl https://sabo-messenger-bot.onrender.com/health   # inboxPoller.enabled: true
+npm run e2e:meta --production                         # 11/11 subscribe
+```
+CEO retest: AI Newbie VN + SABO Media — Get Started → nhắn "có ai ở đó không?" / "giá như nào?" → reply trong vài giây
+
+### Ghi chú (không block)
+- Page `subscribed_apps` vẫn hiện app ADMIN `1340824257525630` (token page từ app cũ); webhook Live `683588` đã config — theo dõi nếu cần migrate token sang Live app
+
 ## [2026-06-18] Uyển Nhi DNA + progressive lead capture
 
 ### Đã làm
