@@ -428,10 +428,19 @@ Override base: `MESSENGER_BASE_URL=https://...`
 
 ### Deploy Render
 
+**Local test gate (bắt buộc):** CEO directive — test trước, hoàn hảo rồi mới deploy. `npm run deploy:render` và `scripts/deploy-render.cjs` đều chạy `test:predeploy` trước; exit 1 nếu fail.
+
 ```bash
-# RENDER_API_KEY from .env.secrets
+# 1. Chạy full gate thủ công (khuyến nghị trước mọi ship)
+npm run test:predeploy
+
+# 2. Deploy (gate chạy lại tự động — không skip)
+# RENDER_API_KEY from D:\0.PROJECTS\.env.secrets (clear stale shell RENDER_API_KEY trước)
 npm run deploy:render
+# hoặc: npm run ship
 ```
+
+`test:predeploy` = `test:customer-safe` + `test:customer-safe-e2e` + `test:lead-flow` + `test:dedupe` + `test:sales-discovery`.
 
 - Service ID: `srv-d8psv69194ac739luu00`
 - Auto-deploy on push `main` (if connected)

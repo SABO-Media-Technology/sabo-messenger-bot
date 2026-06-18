@@ -15,8 +15,11 @@
     "db:migrate": "node --use-system-ca scripts/run-migration.cjs",
     "test:lead": "node --use-system-ca scripts/test-lead-live.cjs",
     "e2e:meta": "node --use-system-ca scripts/e2e-meta-setup.cjs --production",
-    "deploy:render": "node --use-system-ca scripts/deploy-render.cjs",
-    "test:customer-safe-e2e": "node --use-system-ca scripts/test-customer-safe-e2e.cjs"
+    "test:customer-safe-e2e": "node --use-system-ca scripts/test-customer-safe-e2e.cjs",
+    "test:sales-discovery": "node --use-system-ca scripts/test-sales-discovery.cjs",
+    "test:predeploy": "npm run test:customer-safe && npm run test:customer-safe-e2e && npm run test:lead-flow && npm run test:dedupe && npm run test:sales-discovery",
+    "deploy:render": "npm run test:predeploy && node --use-system-ca scripts/deploy-render.cjs",
+    "ship": "npm run test:predeploy && node --use-system-ca scripts/deploy-render.cjs"
   },
   "engines": {
     "node": ">=18"

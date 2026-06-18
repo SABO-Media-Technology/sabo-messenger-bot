@@ -1,4 +1,29 @@
-## [2026-06-18] Sales discovery skill — Uyển Nhi gợi ý dịch vụ (CEO complaint)
+## [2026-06-18] Test gate predeploy + sales-discovery script (CEO directive)
+
+### Đã làm
+- `test:predeploy` — chạy customer-safe, customer-safe-e2e, lead-flow, dedupe, sales-discovery trước mọi deploy
+- `deploy:render` + `ship` — gate bắt buộc; `scripts/deploy-render.cjs` cũng abort nếu test fail
+- `scripts/test-sales-discovery.cjs` — assert discovery không mở bằng pilot MVP; có dịch vụ SABO cụ thể
+- `.env.example` + `docs/MESSENGER_BOT_REFERENCE.md` § Deploy — document local test gate
+
+### Files changed
+- package.json
+- scripts/deploy-render.cjs
+- scripts/test-sales-discovery.cjs (new)
+- .env.example
+- docs/MESSENGER_BOT_REFERENCE.md
+- DEVLOG.md
+
+### Verify
+```bash
+npm run test:predeploy
+node scripts/test-sales-discovery.cjs
+npm run deploy:render
+curl https://sabo-messenger-bot.onrender.com/health
+```
+
+---
+
 
 ### Vấn đề
 - Khách hỏi mở *"có dịch vụ công nghệ nào thú vị không?"* → bot trả lời essay MVP/app thay vì gợi ý ý tưởng sales.

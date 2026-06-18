@@ -1,11 +1,32 @@
 /**
  * Deploy sabo-messenger-bot to Render (create service + env + deploy).
+ *
+ * MANDATORY: runs `npm run test:predeploy` before any Render API call.
+ * Deploy aborts with exit 1 if customer-safe, lead-flow, dedupe, or sales-discovery tests fail.
+ * Prefer: npm run deploy:render (package.json also gates via test:predeploy).
+ *
  * Usage: RENDER_API_KEY=rnd_... node scripts/deploy-render.cjs
  */
 const fs = require("fs");
 const path = require("path");
+const { execSync } = require("child_process");
 
 process.chdir(path.join(__dirname, ".."));
+
+function runPredeployGate() {
+  console.log("=== test:predeploy gate (required before Render deploy) ===");
+  try {
+    execSync("npm run test:predeploy", { stdio: "inherit", env: process.env });
+  } catch {
+    console.error(
+      "\nDEPLOY ABORTED: test:predeploy failed. Fix failing tests locally, then retry npm run deploy:render.",
+    );
+    process.exit(1);
+  }
+  console.log("=== test:predeploy passed — continuing deploy ===\n");
+}
+
+runPredeployGate();
 
 const MONOREPO_ROOT = process.env.MONOREPO_ROOT || "D:\\0.PROJECTS";
 
