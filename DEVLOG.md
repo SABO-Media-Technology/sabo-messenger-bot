@@ -92,6 +92,38 @@ curl :3105/health     → tokensConfigured: 11, llm: groq
 
 ### Handoff
 - Meta Developer: Callback URL `https://sabo-messenger-bot.onrender.com/webhook`, verify `longsang_messenger_bot_2026`
-- Một lần: `GET https://sabo-messenger-bot.onrender.com/setup`
+- ~~Một lần: `GET https://sabo-messenger-bot.onrender.com/setup`~~ ✅ 11/11 (xem entry dưới)
 - RAG production: set `BRAIN_RAG_ENABLED=true` + `BRAIN_RAG_URL` (VPS public) nếu cần
+
+## [2026-06-18] Fix profile setup + E2E production PASS
+
+### Đã làm
+- **Root cause:** Graph API v21+ đã bỏ `greeting` trên `messenger_profile` → `/setup` fail 11/11
+- **Fix:** `sender.js` — một POST gộp `get_started` + `persistent_menu` + `ice_breakers` (thay greeting)
+- Push `sabo-messenger-bot` commit `7932dbe`, Render redeploy **live**
+- `npm run e2e:meta` production:
+  - App webhook subscribed ✅
+  - 11/11 pages subscribed ✅
+  - **11/11 profile setup OK** ✅
+  - Reply pipeline Groq+ RAG OK ✅
+  - Webhook simulate POST 200 ✅
+- Production `/health`: 11 tokens, Groq, leadQueue
+
+### Files changed
+- messenger-bot/src/utils/sender.js
+- messenger-bot/scripts/e2e-meta-setup.cjs
+- messenger-bot/DEVLOG.md
+
+### Verify
+```bash
+cd D:\0.PROJECTS\messenger-bot
+npm run e2e:meta          # exit 0, setup 11/11
+npm run test:replies      # 33/33
+```
+
+### Chưa làm / handoff (inbox thật)
+- **App Meta đang Development** — chỉ user có role Tester/Admin trên app `ADMIN` (1340824257525630) mới nhận auto-reply khi nhắn Page
+- CEO/tester: mở Messenger → nhắn **SABO Media & Technology** (hoặc bất kỳ page trong 11) câu "Xin chào, tư vấn làm app"
+- Muốn public: App Review → Advanced Access `pages_messaging` → chuyển app **Live**
+- Rotate GitHub PAT + Render API key (đã lộ trong chat session trước)
 
