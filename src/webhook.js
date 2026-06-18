@@ -68,6 +68,11 @@ async function processEvent(pageId, event) {
   const senderId = event.sender?.id;
   if (!senderId) return;
 
+  if (event.message?.mid) {
+    const { rememberMessageId } = require("../inbox/poller");
+    rememberMessageId(event.message.mid);
+  }
+
   if (event.message) {
     await handleMessage(page, senderId, event.message);
     return;

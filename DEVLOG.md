@@ -122,8 +122,34 @@ npm run test:replies      # 33/33
 ```
 
 ### Chưa làm / handoff (inbox thật)
-- **App Meta đang Development** — chỉ user có role Tester/Admin trên app `ADMIN` (1340824257525630) mới nhận auto-reply khi nhắn Page
-- CEO/tester: mở Messenger → nhắn **SABO Media & Technology** (hoặc bất kỳ page trong 11) câu "Xin chào, tư vấn làm app"
-- Muốn public: App Review → Advanced Access `pages_messaging` → chuyển app **Live**
+- ~~App Meta Development — webhook không fire cho user không có role~~ → **inbox poller** 45s (2026-06-18)
+- Muốn realtime webhook: Meta App **ADMIN** → Roles → thêm Tester, hoặc App Review → Live
 - Rotate GitHub PAT + Render API key (đã lộ trong chat session trước)
+
+## [2026-06-18] Fix không reply — inbox poller (Meta Dev mode)
+
+### Root cause
+- App Meta `ADMIN` **Development** — webhook Messenger **chỉ gửi** cho user có role Admin/Developer/Tester trên app
+- Account nhắn "Uyển Nhi" (PSID `27720694870861622`) **không** có role → tin vào Page inbox, server Render **không nhận** POST /webhook
+- Send API vẫn OK trong 24h window (đã verify gửi tay + poller)
+
+### Đã làm
+- `src/inbox/poller.js` — mỗi 45s quét inbox 11 page, reply tin user chưa trả (dedup message id)
+- Webhook ghi nhớ `message.mid` để không double-reply khi Live mode
+- `/health` → `ai.inboxPoller`
+- Test local: poller trả 3 backlog (AI Newbie VN + SABO Media + Billiards)
+
+### Files changed
+- messenger-bot/src/inbox/poller.js (new)
+- messenger-bot/src/webhook.js
+- messenger-bot/src/index.js
+- messenger-bot/.env.example
+- messenger-bot/DEVLOG.md
+
+### Verify sau deploy
+```bash
+curl https://sabo-messenger-bot.onrender.com/health
+# inboxPoller.enabled: true
+# Nhắn page → reply trong ~45s
+```
 

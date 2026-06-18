@@ -10,6 +10,7 @@ const { isLlmConfigured, getLlmConfig } = require("./ai/llm");
 const { isRagConfigured } = require("./ai/rag");
 const { isLeadQueueConfigured } = require("./leads/queue");
 const { stats: sessionStats } = require("./session/store");
+const { startInboxPoller, pollerStats } = require("./inbox/poller");
 
 const PORT = process.env.PORT || 3000;
 
@@ -36,6 +37,7 @@ app.get("/health", (_req, res) => {
       brainRagUrl: process.env.BRAIN_RAG_URL || "http://127.0.0.1:3012",
       leadQueue: isLeadQueueConfigured(),
       activeThreads: sessionStats().activeThreads,
+      inboxPoller: pollerStats(),
     },
     strategies: {
       "sabo-mt": pages.filter((p) => p.replyStrategy === "sabo-mt").length,
@@ -90,7 +92,9 @@ async function start() {
       llm: llm?.provider || "none",
       rag: isRagConfigured(),
       leadQueue: isLeadQueueConfigured(),
+      inboxPoller: pollerStats().enabled,
     });
+    startInboxPoller();
   });
 }
 
