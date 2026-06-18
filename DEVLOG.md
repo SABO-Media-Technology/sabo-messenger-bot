@@ -1,3 +1,36 @@
+## [2026-06-18] Vertical segmentation — 5 business lanes (CEO strategic)
+
+### Phân tích
+- Trước đây: phân theo `projectSlug` + `replyStrategy` — billiards/BĐS/AI education dùng chung template SABO M&T
+- Thiếu: vertical taxonomy, tone riêng (venue vs B2B), forbidden behaviors per lane, template Layer 0 theo vertical
+
+### Đã làm
+- `VERTICALS` + `vertical` trên mỗi `PAGE_CONTRACTS` (5 verticals: billiards-ops, sabo-mt-services, ai-education, real-estate, platform)
+- `buildVerticalPromptBlock()` inject vào system prompt; persona `venue` cho billiards
+- `VERTICAL_TEMPLATES` trong `templates.js` — không còn một script hotline/giá chung
+- Router: layer tag `strategy:verticalId`; billiards handoff bỏ auto hotline append
+- Greeting billiards/BĐS: bỏ hotline trong intro
+- Tests: vertical mapping + template smoke + per-vertical scenarios trong `test:replies`
+- `docs/MESSENGER_BOT_REFERENCE.md` § Vertical segmentation
+- Merge intent với lead-capture fix (hotline chủ động → xin contact)
+
+### Files changed
+- src/strategies/page-contracts.js
+- src/responses/prompts.js, src/leads/flow.js
+- src/ai/templates.js, src/ai/router.js
+- scripts/test-replies.cjs, scripts/test-lead-flow.cjs
+- docs/MESSENGER_BOT_REFERENCE.md
+
+### Verify
+```bash
+npm run test:lead-flow && npm run test:replies
+# Pass 37 | Warn 1 | Fail 0
+```
+
+### Chưa làm / handoff
+- CEO test live inbox từng vertical (đặt bàn billiards, demo SABOHUB, BĐS)
+- Có thể thêm `intent` field riêng trong Supabase metadata nếu sales cần filter
+
 ## [2026-06-18] Fix bot đẩy hotline — thu lead chủ động (CEO complaint AI Newbie VN)
 
 ### Root cause

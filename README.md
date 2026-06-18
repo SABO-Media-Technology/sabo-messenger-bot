@@ -1,5 +1,7 @@
 # Messenger Bot — Multi-Page AI Inbox (11 SABO Pages)
 
+> **Agent đọc trước:** [docs/MESSENGER_BOT_REFERENCE.md](docs/MESSENGER_BOT_REFERENCE.md) — canonical reference (architecture, prod IDs, ops, troubleshooting).
+
 Webhook server xử lý **Facebook Messenger inbox** cho 11 page — map vào dự án empire, AI reply **không qua Travis**.
 
 ## Kiến trúc reply (3 tầng)

@@ -1,14 +1,14 @@
 const { matchTemplate } = require("./templates");
 const { chatCompletion, isLlmConfigured } = require("./llm");
 const { fetchRagContext } = require("./rag");
-const { getSystemPrompt, HOTLINE } = require("../responses/prompts");
+const { getSystemPrompt } = require("../responses/prompts");
 const { getReplyText } = require("../responses/greeting");
 const { detectLeadIntent } = require("./intent");
 const { getHistory, appendTurn, getLeadProfile, setLeadProfile } = require("../session/store");
 const { queueLeadEvent } = require("../leads/queue");
 const { mergeLeadProfile } = require("../leads/extract");
 const { buildLeadPromptBlock, isLeadComplete, getGreetingForPage } = require("../leads/flow");
-const { getPageContract } = require("../strategies/page-contracts");
+const { getPageContract, getVerticalId } = require("../strategies/page-contracts");
 const { logger } = require("../utils/logger");
 
 function buildPromptWithRag(basePrompt, ragContext) {
@@ -132,15 +132,14 @@ async function generateReply(page, senderId, userText) {
     maybeQueueCompleteLead(page, senderId, text, layer, getLeadProfile(page.id, senderId));
 
     if (page.replyStrategy === "human-handoff" && page.tier === "t2") {
-      const hotline = page.hotline || HOTLINE;
-      const alreadyHasHandoff = /hotline|liên hệ trực tiếp|team sabo billiards/i.test(reply);
+      const alreadyHasHandoff = /team sabo billiards|sẽ liên hệ/i.test(reply);
       const handoffText = alreadyHasHandoff
         ? reply
-        : `${reply}\n\n— Team SABO Billiards sẽ liên hệ trực tiếp. Hotline: ${hotline}.`;
+        : `${reply}\n\n— Team SABO Billiards sẽ liên hệ sớm ạ.`;
       return { text: handoffText, layer: "human-handoff" };
     }
 
-    return { text: reply, layer };
+    return { text: reply, layer: `${layer}:${getVerticalId(page)}` };
   } catch (err) {
     logger.error("reply_generation_failed", {
       pageId: page.id,

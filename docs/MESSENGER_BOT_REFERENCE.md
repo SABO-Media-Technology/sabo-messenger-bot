@@ -198,9 +198,32 @@ Code: `src/ai/rag.js` — **best-effort**; RAG fail không block reply.
 
 ### Page contracts (`src/strategies/page-contracts.js`)
 
-Mỗi `projectSlug` có: `goal`, `persona` (`uyen_nhi` | `generic`), `leadFields[]`, `greetingIntro`.
+Mỗi `projectSlug` có: `vertical`, `goal`, `persona` (`uyen_nhi` | `venue` | `generic`), `leadFields[]`, `greetingIntro`.
 
 Lead fields: `name` | `contact` | `business_type` | `need` | `timeline` | `budget`
+
+### Vertical segmentation (2026-06-18)
+
+Bot **không** dùng một script chung — mỗi **vertical** (business lane) có tone, CTA, template Layer 0, và forbidden behaviors riêng.
+
+| Vertical | Pages (`projectSlug`) | Persona | Goal | Lead fields | CTA |
+|----------|----------------------|---------|------|-------------|-----|
+| `billiards-ops` | `sabo-billiards`, `sabo-arena` | venue staff | đặt bàn / giải | name, contact, need (intent) | hỏi SĐT — **không** dump hotline |
+| `sabo-mt-services` | `sabo-mt` (5 page M&T) | Uyển Nhi B2B | qualify chuyển đổi số | name, contact, business_type, need, timeline, budget | xin contact chủ động |
+| `ai-education` | `ainewbie`, `ai-art` | Uyển Nhi teacher | học AI + soft upsell SABO | name, contact, need (learning goal) | trả lời ngắn + xin SĐT/email |
+| `real-estate` | `vungtau` | property advisor | nhu cầu BĐS | name, contact, need, timeline | khu vực + SĐT |
+| `platform` | `sabohub` | Uyển Nhi product | demo/trial SABOHUB | name, contact, business_type, need | demo + use case |
+
+**Code map:**
+
+| File | Vai trò |
+|------|---------|
+| `src/strategies/page-contracts.js` | `VERTICALS`, `PAGE_CONTRACTS`, `buildVerticalPromptBlock()` |
+| `src/responses/prompts.js` | `getSystemPrompt()` = Uyển Nhi/venue + vertical block + lead block |
+| `src/ai/templates.js` | `VERTICAL_TEMPLATES` — keyword replies theo vertical |
+| `src/ai/router.js` | Layer tag `strategy:verticalId`; billiards handoff **không** auto hotline |
+
+**Forbidden (global):** không đưa hotline `0798893333` trừ khi khách hỏi rõ; không bảo "gọi điện" — team chủ động liên hệ sau khi có contact.
 
 ### Progressive lead collection (`src/leads/flow.js`)
 
@@ -303,8 +326,8 @@ curl https://sabo-messenger-bot.onrender.com/health
 curl "http://localhost:3000/webhook?hub.mode=subscribe&hub.verify_token=longsang_messenger_bot_2026&hub.challenge=123"
 
 # Automated tests
-npm run test:replies      # 33 reply scenarios
-npm run test:lead-flow    # Multi-turn Uyển Nhi lead flow
+npm run test:replies      # 11 pages + 5 vertical scenarios
+npm run test:lead-flow    # Lead extraction + vertical mapping + multi-turn
 npm run test:lead         # Live lead queue (needs Supabase)
 npm run db:migrate        # sql/001 + 002 on shared Supabase
 ```
