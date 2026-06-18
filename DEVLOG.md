@@ -1,4 +1,37 @@
-- **2026-06-18 ship verify:** Ollama `qwen3.5:9b` wired as LLM #1 (local). Render prod cần `OLLAMA_BASE_URL` tunnel hoặc vẫn Groq.
+- **2026-06-18 ship verify:** Hermes API + Ollama wired; `npm run test:hermes` OK (ballpark giá thật).
+
+## [2026-06-18] Hermes integration + prod path (CEO: bot hoàn hảo)
+
+### Đã làm
+- `src/ai/hermes-client.js` — gọi Hermes Gateway `POST /v1/chat/completions` (:8642), session key `messenger:{slug}:{pageId}:{psid}`
+- `router.js`: **Hermes trước** → fallback Ollama/Groq/OpenAI
+- `/health`: block `hermes.enabled/healthy/url`
+- `scripts/test-hermes-reply.cjs` + `npm run test:hermes` ✅ (~20s, reply sales có giá 15–50tr)
+- `scripts/setup-cloudflare-tunnel.ps1` — tunnel Ollama hoặc Hermes cho Render
+
+### Kiến trúc
+```
+FB Messenger → messenger-bot (Render) → [tunnel] → Hermes :8642 → Ollama qwen3.5:9b
+                     ↓ fail
+                 Ollama/Groq direct (llm.js)
+```
+
+### CEO bật prod (HOME — PC + Ollama + Hermes lab)
+1. `pm2 start` hermes-lab (đã chạy :8642)
+2. `pwsh scripts/setup-cloudflare-tunnel.ps1 -Service hermes` → copy URL
+3. Render env: `HERMES_ENABLED=true`, `HERMES_API_URL=https://xxx.trycloudflare.com`, `HERMES_API_KEY=brain-hermes-local-2026`
+4. `OLLAMA_ENABLED=true` + tunnel :11434 (backup nếu Hermes down)
+5. `npm run deploy:render`
+
+### Test inbox SABO Media
+1. Qualify (cho SĐT) → 2. `giá website bao nhiêu` → 3. `tư vấn thêm về app`
+
+### Files changed
+- src/ai/hermes-client.js, src/ai/router.js, src/index.js
+- scripts/test-hermes-reply.cjs, scripts/setup-cloudflare-tunnel.ps1
+- .env.example, package.json, scripts/deploy-render.cjs
+
+- **2026-06-18 ship verify (prior):** Ollama qwen3.5:9b primary LLM
 
 ## [2026-06-18] Ollama local LLM — qwen3.5:9b thay Groq
 

@@ -1,5 +1,6 @@
 const { matchTemplate } = require("./templates");
 const { chatCompletion, isLlmConfigured } = require("./llm");
+const { isHermesEnabled, chatHermes } = require("./hermes-client");
 const { fetchRagContext } = require("./rag");
 const { getSystemPrompt } = require("../responses/prompts");
 const { getReplyText } = require("../responses/greeting");
@@ -177,7 +178,7 @@ async function generateReply(page, senderId, userText) {
     return { text: templateHit, layer: postQualify ? "template-post-qualify" : "template" };
   }
 
-  if (!isLlmConfigured()) {
+  if (!isLlmConfigured() && !isHermesEnabled()) {
     const fb = fallbackReply(page, profile, meta, text);
     recordReply(page, senderId, text, fb);
     maybeQueueLead(page, senderId, text, postQualify ? "fallback-no-llm:consult" : "fallback-no-llm");
@@ -206,11 +207,33 @@ async function generateReply(page, senderId, userText) {
       }
     }
 
-    const reply = await chatCompletion(
-      systemPrompt,
-      [...history, { role: "user", content: text }],
-      { temperature: postQualify ? 0.65 : 0.5 },
-    );
+    let reply;
+    let replyVia = "llm";
+
+    if (isHermesEnabled()) {
+      try {
+        reply = await chatHermes({
+          page,
+          senderId,
+          systemPrompt,
+          history,
+          userText: text,
+          temperature: postQualify ? 0.65 : 0.5,
+        });
+        replyVia = "hermes";
+        layer = `hermes-${layer}`;
+      } catch (hermesErr) {
+        logger.warn("hermes_failover", { pageId: page.id, error: hermesErr.message });
+      }
+    }
+
+    if (!reply) {
+      reply = await chatCompletion(
+        systemPrompt,
+        [...history, { role: "user", content: text }],
+        { temperature: postQualify ? 0.65 : 0.5 },
+      );
+    }
 
     recordReply(page, senderId, text, reply);
     maybeQueueLead(page, senderId, text, layer);
@@ -232,7 +255,7 @@ async function generateReply(page, senderId, userText) {
     }
 
     const modeTag = postQualify ? "consult" : "intake";
-    return { text: reply, layer: `${layer}:${getVerticalId(page)}:${modeTag}` };
+    return { text: reply, layer: `${layer}:${getVerticalId(page)}:${modeTag}:${replyVia}` };
   } catch (err) {
     logger.error("reply_generation_failed", {
       pageId: page.id,

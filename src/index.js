@@ -7,6 +7,7 @@ const { loadPageRegistry, getPagesWithToken, getAllPages } = require("./pages");
 const { setupAllPages } = require("./utils/sender");
 const { logger, requestLogger } = require("./utils/logger");
 const { isLlmConfigured, getLlmConfig, listLlmProviders } = require("./ai/llm");
+const { isHermesEnabled, getHermesConfig, probeHermesHealth } = require("./ai/hermes-client");
 const { isRagConfigured } = require("./ai/rag");
 const { isLeadQueueConfigured } = require("./leads/queue");
 const { stats: sessionStats } = require("./session/store");
@@ -20,10 +21,19 @@ app.use(requestLogger);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.get("/health", (_req, res) => {
+app.get("/health", async (_req, res) => {
   const pages = getAllPages();
   const configured = getPagesWithToken().length;
   const llm = getLlmConfig();
+  const hermes = getHermesConfig();
+  let hermesHealthy = null;
+  if (hermes) {
+    try {
+      hermesHealthy = await probeHermesHealth();
+    } catch {
+      hermesHealthy = false;
+    }
+  }
 
   res.status(200).json({
     status: "ok",
@@ -31,10 +41,18 @@ app.get("/health", (_req, res) => {
     pages: pages.length,
     tokensConfigured: configured,
     ai: {
-      llm: isLlmConfigured(),
-      llmProvider: llm?.provider || null,
-      llmModel: llm?.model || null,
+      llm: isLlmConfigured() || isHermesEnabled(),
+      llmProvider: hermes && hermesHealthy ? "hermes" : llm?.provider || null,
+      llmModel: hermes && hermesHealthy ? hermes.model : llm?.model || null,
       llmChain: listLlmProviders().map((p) => `${p.provider}/${p.model}`),
+      hermes: hermes
+        ? {
+            enabled: true,
+            url: hermes.baseUrl,
+            healthy: hermesHealthy,
+            model: hermes.model,
+          }
+        : { enabled: false },
       brainRag: isRagConfigured(),
       brainRagUrl: process.env.BRAIN_RAG_URL || "http://127.0.0.1:3012",
       leadQueue: isLeadQueueConfigured(),
