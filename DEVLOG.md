@@ -1,3 +1,80 @@
+## [2026-06-18] FIX duplicate reply — dedupe.js + Supabase 24h + poller session skip
+
+### Root cause (không phải Supabase "điên")
+- **Supabase lead queue** chỉ ghi `messenger_leads` — **không** gọi `sendMessage`. Không phải thủ phạm gửi trùng.
+- **Supabase session hydrate** có thể giữ state post-qualify → bot trả lời *giống nội dung* (fallback), nhưng không tự gửi lại.
+- **Thủ phạm gửi trùng thật:**
+  1. `INBOX_POLLER_ENABLED=true` trên prod + webhook Live → cùng message xử lý 2 lần (race / cold start)
+  2. Dedupe cũ **chỉ in-memory** → Render restart → poller replay 24h inbox → gửi lại cùng reply
+  3. Commit `8a4cfb0` import `./inbox/dedupe` nhưng **thiếu file** → webhook text message có thể crash (Meta 200, user không thấy reply)
+
+### Đã làm
+- `src/inbox/dedupe.js` — claim mid trước khi xử lý; memory + Supabase `messenger_processed_mids` (24h)
+- Poller: skip nếu session đã có assistant reply cho cùng user text (`sessionAlreadyReplied`)
+- `sql/004_messenger_processed_mids.sql` + `npm run db:migrate` ✅
+- `scripts/test-dedupe.cjs` + `npm run test:dedupe` ✅
+- `deploy-render.cjs`: default `INBOX_POLLER_ENABLED=false` (webhook Live)
+
+### Files changed
+- src/inbox/dedupe.js (new)
+- sql/004_messenger_processed_mids.sql (new)
+- scripts/test-dedupe.cjs (new)
+- scripts/run-migration.cjs
+- scripts/deploy-render.cjs
+- DEVLOG.md
+
+### Verify
+```bash
+npm run test:dedupe && npm run test:lead-flow
+npm run db:migrate
+curl --ssl-no-revoke https://sabo-messenger-bot.onrender.com/health
+```
+
+### CEO retest
+1. Nhắn 1 câu trên AI Newbie VN / SABO Media → **1 reply duy nhất**
+2. Đợi 1–2 phút → **không** nhận thêm bản copy
+3. Hỏi câu mới → reply khác (không lặp nguyên văn greeting)
+
+---
+
+## [2026-06-18] AUDIT toàn diện prod messenger-bot (CEO)
+
+### Kết luận thẳng
+- **Prod Render đang chạy code CŨ** — `/health` thiếu `gitCommit`, `hermes`, `llmChain`; poller shape `seenMessages` (local/GitHub đã đổi sang `dedupe`).
+- **Brain prod = Groq `llama-3.3-70b-versatile` only** — không Hermes, không Ollama. CEO thấy bot "robot" vì không có Uyển Nhi/Hermes + Groq 429 → fallback cứng.
+- **Hermes unreachable trên prod** — Hermes chạy local `:8642` (PC); Render không reach được nếu không có Cloudflare tunnel + `HERMES_ENABLED=true`.
+- **Duplicate reply**: prod `INBOX_POLLER_ENABLED=true` + dedupe cũ (in-memory only) → cold start / webhook+poller race. Fix local: `dedupe.js` + migration `004` + wire webhook/poller — **chưa deploy**.
+- **Customer-safe guards**: code local pass `test:customer-safe` + E2E 8/8 — **chưa trên prod** (uncommitted/staged).
+- **Git**: `main` = `origin/main` @ `5f7b95e` nhưng Render **chưa redeploy** commit này.
+
+### Evidence prod (2026-06-18 ~21:07 ICT)
+```
+curl --ssl-no-revoke https://sabo-messenger-bot.onrender.com/health
+→ llmProvider: groq, inboxPoller.enabled: true, NO gitCommit/hermes/llmChain
+```
+
+### Đã fix trong session audit
+- `deploy-render.cjs`: default `INBOX_POLLER_ENABLED=false` (webhook Live — tránh double-reply)
+- `.env.example`: document poller off prod / on dev
+
+### CEO cần làm (3 bước)
+1. **Commit + push** toàn bộ staged/untracked (dedupe, customer-safe, variation) → `git push origin main`
+2. **PC HOME**: giữ `pm2` Hermes `:8642` + `cloudflared tunnel` → set Render `HERMES_ENABLED=true`, `HERMES_API_URL=<tunnel URL>`, `HERMES_API_KEY=...`
+3. **`npm run deploy:render`** + `npm run db:migrate` (migration `004_messenger_processed_mids`) → verify `/health` có `gitCommit` + `hermes.healthy`
+
+### Verify commands
+```powershell
+curl --ssl-no-revoke https://sabo-messenger-bot.onrender.com/health
+cd D:\0.PROJECTS\messenger-bot && npm run test:lead-flow && npm run test:customer-safe-e2e
+```
+
+### Files changed (session audit)
+- scripts/deploy-render.cjs
+- .env.example
+- DEVLOG.md
+
+---
+
 ## [2026-06-18] Natural Uyển Nhi voice — giảm giọng máy móc
 
 ### Đã làm

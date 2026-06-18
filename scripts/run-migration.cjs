@@ -36,6 +36,7 @@ async function main() {
     "001_messenger_threads.sql",
     "002_messenger_leads.sql",
     "003_messenger_threads_lead_meta.sql",
+    "004_messenger_processed_mids.sql",
   ];
   const client = new Client({
     connectionString: databaseUrl.replace(/\r?\n/g, "").trim(),
