@@ -348,6 +348,31 @@ curl https://sabo-messenger-bot.onrender.com/health
 # Nhắn page → reply trong ~45s
 ```
 
+## [2026-06-18] Ship production — Highvision UX + session persist
+
+### Đã làm
+- Push `c06d381` + `e125fe9` lên `origin/main` (auth: unset `GITHUB_TOKEN` invalid, `git -c http.sslVerify=false push`)
+- Render auto-deploy `dep-d8pu9hsvikkc73flu0c0` → **live** (~16s)
+- Production `/health` OK: 11 pages, 11 tokens, Groq LLM, inbox poller on
+- `npm run test:replies`: 37 pass, 1 warn, 0 fail
+- `npm run test:lead-flow`: 1 fail — post-qualify multi-turn (`test_sabo_mt_post_qualify`) trả fallback intake thay vì consult web
+
+### Commits deployed (mới so với remote trước ship)
+- `c06d381` fix: sales UX — FB profile name + Highvision lead flow (need→contact, no hotline dump)
+- `e125fe9` feat: persist PSID sessions to Supabase across cold starts (`persist.js`, `sql/003`)
+
+### Files changed (ship session)
+- messenger-bot/DEVLOG.md
+
+### Chưa làm / handoff
+- Fix `testSaboMtPostQualifyMultiTurn` regression (turn 4 post-qualify consult)
+- Chạy migration `sql/003_messenger_threads_lead_meta.sql` trên Supabase shared nếu chưa có cột `lead`/`meta`
+- `deploy-render.cjs`: thêm `node --use-system-ca` hoặc fix SSL fetch trên Windows
+
+### Verify
+- https://sabo-messenger-bot.onrender.com/health
+- Nhắn Messenger page SABO M&T → flow need trước, contact sau, không hỏi tên nếu FB profile có
+
 ## [2026-06-18] Env bootstrap — thêm nguồn 05-TOOLS (Brain SSoT)
 
 ### Đã làm
