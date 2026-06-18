@@ -163,8 +163,13 @@ async function generateReply(page, senderId, userText) {
     }
   }
 
-  // Layer 0 — skip intake templates after qualify
-  const templateHit = matchTemplate(text, page, tplCtx);
+  // Layer 0 — skip canned templates after first exchange (LLM = real sales dialog)
+  const historyForTpl = getHistory(page.id, senderId);
+  const skipIntakeTemplates =
+    historyForTpl.length > 0 &&
+    (page.replyStrategy === "sabo-mt" || page.replyStrategy === "rag-mini");
+
+  const templateHit = skipIntakeTemplates ? null : matchTemplate(text, page, tplCtx);
   if (templateHit) {
     recordReply(page, senderId, text, templateHit);
     maybeQueueLead(page, senderId, text, "template");

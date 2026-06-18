@@ -1,4 +1,56 @@
-- **2026-06-18 ship verify:** `origin/main` `2143385` post-qualify consult fix pushed; Render auto-deploy from push; `test:lead-flow` + `test:replies` pass.
+- **2026-06-18 ship verify:** Ollama `qwen3.5:9b` wired as LLM #1 (local). Render prod cần `OLLAMA_BASE_URL` tunnel hoặc vẫn Groq.
+
+## [2026-06-18] Ollama local LLM — qwen3.5:9b thay Groq
+
+### Root cause bot "ngu"
+- Test `test:replies`: Groq **429 liên tục**, OpenAI fallback **401** → hầu hết turn = `fallback-error` (câu robot)
+- CEO có Ollama local: **qwen3.5:9b** (6.6GB) — chưa được dùng
+
+### Đã làm
+- `src/ai/llm.js`: Ollama dùng native `/api/chat` + `think:false` (qwen3.5 không trả content qua OpenAI-compat)
+- Env: `OLLAMA_ENABLED=true`, `OLLAMA_BASE_URL=http://127.0.0.1:11434/v1`, `OLLAMA_MODEL=qwen3.5:9b`
+- Prod guard: trên Render không auto-dùng localhost — phải set `OLLAMA_BASE_URL` = URL tunnel (Cloudflare/Tailscale)
+- `/health`: `llmChain` hiển thị provider chain
+- `scripts/test-ollama-reply.cjs` + `npm run test:ollama`
+- `deploy-render.cjs`: push OLLAMA_* env vars
+
+### Files changed
+- src/ai/llm.js, src/index.js
+- .env.example, package.json, scripts/deploy-render.cjs, scripts/test-ollama-reply.cjs
+
+### CEO — chạy prod qua Ollama PC
+1. Giữ Ollama app chạy + model `qwen3.5:9b`
+2. Tunnel port 11434 ra public (vd Cloudflare Tunnel) → URL `https://xxx.trycloudflare.com/v1`
+3. Render env: `OLLAMA_ENABLED=true`, `OLLAMA_BASE_URL=<tunnel>/v1`, `OLLAMA_MODEL=qwen3.5:9b`
+4. `npm run deploy:render` hoặc set env trên Render dashboard
+5. Verify: `GET /health` → `llmProvider: ollama`, `llmChain: ["ollama/qwen3.5:9b",...]`
+
+### Verify local
+```powershell
+cd D:\0.PROJECTS\messenger-bot
+$env:OLLAMA_ENABLED='true'
+npm run test:ollama
+```
+
+- **2026-06-18 ship verify (prior):** Render redeploy manual `dep-d8puj947ihis7392gl4g` LIVE ~12:50 UTC
+
+## [2026-06-18] Manual Render redeploy — post-qualify still stale on prod
+
+### Đã làm
+- Subagent deploy bị block (billing) → trigger `npm run deploy:render` thủ công
+- Deploy LIVE: `dep-d8puj947ihis7392gl4g` (commit message `docs: DEVLOG post-qualify consult hotfix` = tree có `2143385`)
+- Local: `gitCommit` trên `/health` (commit `48b9ed5` — **chưa push** do GitHub auth fail)
+
+### Root cause (đã xác nhận trước đó)
+- Câu lặp y chang = `postQualifyFallback()` cũ (`890decc`) HOẶC Groq 429 → fallback
+- Fix `2143385` đã có trên GitHub; prod trước 12:50 UTC có thể chưa deploy
+
+### Chưa làm / handoff
+- CEO retest 3 câu sau qualify: `giá cả như nào?`, `tư vấn sơ web`, `giờ thích làm app` — mỗi câu phải khác nhau
+- Push `48b9ed5` (health gitCommit) khi GitHub token OK
+- Nếu vẫn lặp: check Render logs `reply_generation_failed` / Groq 429
+
+- **2026-06-18 ship verify (prior):** `origin/main` `2143385` post-qualify consult fix pushed; `test:lead-flow` + `test:replies` pass.
 
 ## [2026-06-18] HOTFIX post-qualify loop — identical reply mọi turn (`2143385`)
 

@@ -6,7 +6,7 @@ const webhookRouter = require("./webhook");
 const { loadPageRegistry, getPagesWithToken, getAllPages } = require("./pages");
 const { setupAllPages } = require("./utils/sender");
 const { logger, requestLogger } = require("./utils/logger");
-const { isLlmConfigured, getLlmConfig } = require("./ai/llm");
+const { isLlmConfigured, getLlmConfig, listLlmProviders } = require("./ai/llm");
 const { isRagConfigured } = require("./ai/rag");
 const { isLeadQueueConfigured } = require("./leads/queue");
 const { stats: sessionStats } = require("./session/store");
@@ -34,6 +34,7 @@ app.get("/health", (_req, res) => {
       llm: isLlmConfigured(),
       llmProvider: llm?.provider || null,
       llmModel: llm?.model || null,
+      llmChain: listLlmProviders().map((p) => `${p.provider}/${p.model}`),
       brainRag: isRagConfigured(),
       brainRagUrl: process.env.BRAIN_RAG_URL || "http://127.0.0.1:3012",
       leadQueue: isLeadQueueConfigured(),

@@ -8,6 +8,7 @@
     "dev": "node --use-system-ca --watch src/index.js",
     "test:replies": "node --use-system-ca scripts/test-replies.cjs",
     "test:lead-flow": "node --use-system-ca scripts/test-lead-flow.cjs",
+    "test:ollama": "node --use-system-ca scripts/test-ollama-reply.cjs",
     "db:migrate": "node --use-system-ca scripts/run-migration.cjs",
     "test:lead": "node --use-system-ca scripts/test-lead-live.cjs",
     "e2e:meta": "node --use-system-ca scripts/e2e-meta-setup.cjs --production",
