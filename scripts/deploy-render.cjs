@@ -67,7 +67,7 @@ function buildEnvVars() {
     { key: "TELEGRAM_BOT_TOKEN", value: process.env.TELEGRAM_BOT_TOKEN },
     { key: "TELEGRAM_ADMIN_CHAT_ID", value: process.env.TELEGRAM_ADMIN_CHAT_ID },
     { key: "META_USER_ACCESS_TOKEN", value: process.env.META_USER_ACCESS_TOKEN },
-    { key: "INBOX_POLLER_ENABLED", value: process.env.INBOX_POLLER_ENABLED ?? "false" },
+    { key: "INBOX_POLLER_ENABLED", value: process.env.INBOX_POLLER_ENABLED ?? "true" },
     { key: "BRAIN_RAG_ENABLED", value: process.env.BRAIN_RAG_ENABLED || "false" },
   ];
 

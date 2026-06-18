@@ -2,6 +2,7 @@ const express = require("express");
 const { getPage } = require("./pages");
 const { handleMessage } = require("./handlers/message");
 const { handlePostback } = require("./handlers/welcome");
+const { rememberMessageId } = require("./inbox/poller");
 const { logger } = require("./utils/logger");
 
 const router = express.Router();
@@ -69,7 +70,6 @@ async function processEvent(pageId, event) {
   if (!senderId) return;
 
   if (event.message?.mid) {
-    const { rememberMessageId } = require("../inbox/poller");
     rememberMessageId(event.message.mid);
   }
 
