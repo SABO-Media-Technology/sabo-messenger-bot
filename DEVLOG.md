@@ -1,3 +1,53 @@
+## [2026-06-18] Fix bot đẩy hotline — thu lead chủ động (CEO complaint AI Newbie VN)
+
+### Root cause
+- Layer 0 `templates.js`: match `giá`/`liên hệ` → dump hotline `0798893333`
+- `prompts.js` SHARED_RULES + mọi project prompt: mandate "kết thúc bằng hotline"
+- Lead block yếu — LLM ưu tiên hotline CTA thay vì hỏi SĐT/email
+
+### Đã làm
+- Templates: giá/sản phẩm → trả lời ngắn + hỏi contact; hotline chỉ khi hỏi rõ
+- Uyển Nhi DNA + prompts: thu lead chủ động, SABO liên hệ khách, không đẩy số
+- `flow.js`: strengthen lead prompt block (BẮT BUỘC hỏi field thiếu, cấm hotline)
+- Fallback/greeting/welcome REQUEST_CONSULT: xin contact thay vì hotline
+- Test: `product-inquiry` "ngoài học ra thì còn sản phẩm gì" — AI Newbie phải hỏi SĐT/email
+- `docs/MESSENGER_BOT_REFERENCE.md` § lead behavior policy
+
+### Files changed
+- src/ai/templates.js, prompts.js (via responses/), router.js, intent.js
+- src/personas/uyen-nhi.js, src/leads/flow.js
+- src/responses/prompts.js, greeting.js, handlers/welcome.js
+- src/strategies/page-contracts.js
+- scripts/test-replies.cjs, test-lead-flow.cjs
+- docs/MESSENGER_BOT_REFERENCE.md
+
+### Verify
+```bash
+npm run test:lead-flow && npm run test:replies
+# AI Newbie product-inquiry → "Cho em xin SĐT hoặc email" (no 0798893333)
+```
+
+### Chưa làm / handoff
+- CEO test live inbox AI Newbie VN sau deploy
+- Menu "Gọi ngay" vẫn đưa hotline (user chủ động bấm — OK)
+
+## [2026-06-18] Canonical reference doc cho agent fleet
+
+### Đã làm
+- Tạo `docs/MESSENGER_BOT_REFERENCE.md` — SSoT cho Messenger bot (purpose, architecture, prod IDs, AI stack, page contracts, env map, ops, troubleshooting, agent rules)
+- `README.md` — link "Agent đọc trước" ở đầu file
+- `AGENTS.md` — entry ngắn trỏ về reference doc
+
+### Files changed
+- messenger-bot/docs/MESSENGER_BOT_REFERENCE.md (new)
+- messenger-bot/README.md
+- messenger-bot/AGENTS.md (new)
+- messenger-bot/DEVLOG.md
+
+### Chưa làm / handoff
+- CEO/agent review doc — bổ sung nếu thiếu business rule mới
+- Migrate page tokens hoàn toàn sang Live app `683588` (optional, ghi trong troubleshooting)
+
 ## [2026-06-18] HOTFIX — follow-up Messenger không reply (webhook crash)
 
 ### Root cause

@@ -6,7 +6,7 @@ const { HOTLINE } = require("../responses/prompts");
 
 const POSTBACK_REPLIES = {
   CALL_SUPPORT: `Bạn có thể gọi hotline ${HOTLINE} để được hỗ trợ nhanh nhất. Cảm ơn bạn!`,
-  REQUEST_CONSULT: `Cảm ơn bạn! Đội ngũ SABO sẽ liên hệ tư vấn sớm nhất. Hotline: ${HOTLINE}`,
+  REQUEST_CONSULT: `Cảm ơn anh/chị! Để team SABO tư vấn sớm nhất, anh/chị cho em xin tên và SĐT hoặc email liên hệ nhé?`,
 };
 
 /**

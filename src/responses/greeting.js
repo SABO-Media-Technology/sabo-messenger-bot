@@ -4,7 +4,7 @@
  */
 
 const DEFAULT_REPLY =
-  "Cảm ơn bạn đã nhắn tin! SABO sẽ phản hồi sớm nhất. Bạn có thể gọi 0798893333 để được hỗ trợ nhanh hơn.";
+  "Cảm ơn anh/chị đã nhắn tin! Team SABO sẽ phản hồi sớm. Cho em xin SĐT hoặc email liên hệ để hỗ trợ nhanh hơn nhé?";
 
 const DEFAULT_GREETING =
   "Xin chào {{user_first_name}}! Cảm ơn bạn đã liên hệ SABO. Chúng tôi sẽ phản hồi sớm nhất.";

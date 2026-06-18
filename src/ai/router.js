@@ -22,7 +22,7 @@ ${ragContext}`;
 function fallbackReply(page) {
   return (
     getReplyText(page.id) ||
-    `Cảm ơn bạn đã nhắn tin ${page.name}! SABO sẽ phản hồi sớm. Hotline: ${page.hotline || HOTLINE}.`
+    `Cảm ơn anh/chị đã nhắn tin ${page.name}! Em ghi nhận rồi — cho em xin SĐT hoặc email để team SABO liên hệ sớm nhé?`
   );
 }
 

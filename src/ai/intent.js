@@ -14,6 +14,13 @@ const LEAD_SIGNALS = [
   "đăng ký",
   "booking",
   "contact",
+  "sản phẩm",
+  "dịch vụ",
+  "bán gì",
+  "làm gì",
+  "giá",
+  "website",
+  "app",
 ];
 
 const HOT_LEAD_SIGNALS = [

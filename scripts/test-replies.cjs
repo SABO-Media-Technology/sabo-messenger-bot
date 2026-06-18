@@ -19,6 +19,7 @@ const TEST_CASES = [
   { label: "greeting", text: "Xin chào shop ơi" },
   { label: "pricing", text: "Làm website giá bao nhiêu vậy?" },
   { label: "lead-intent", text: "Tôi muốn tư vấn gấp, gọi cho tôi nhé 0912345678" },
+  { label: "product-inquiry", text: "ngoài học ra thì còn sản phẩm gì nữa không?" },
 ];
 
 function scoreReply(reply, page, testCase) {
@@ -32,8 +33,11 @@ function scoreReply(reply, page, testCase) {
   if (/tôi là (một )?ai|chatbot/i.test(text)) issues.push("tự nhận AI");
 
   if (testCase.label === "pricing" && page.tier !== "t2") {
-    if (!/hotline|0798893333|gọi|liên hệ|contact|sabo\.com/i.test(text)) {
-      issues.push("thiếu CTA khi hỏi giá");
+    if (/0798893333|hotline.*gọi|gọi.*0798/i.test(text)) {
+      issues.push("không được đẩy hotline khi hỏi giá");
+    }
+    if (!/sđt|email|liên hệ|cho em|xin/i.test(text)) {
+      issues.push("thiếu hỏi contact khi hỏi giá");
     }
   }
 
@@ -43,6 +47,18 @@ function scoreReply(reply, page, testCase) {
 
   if (page.projectSlug === "vungtau" && testCase.label === "pricing") {
     if (!/bất động|vũng tàu|vungtau/i.test(lower)) issues.push("thiếu ngữ cảnh BĐS");
+  }
+
+  if (testCase.label === "product-inquiry" && page.projectSlug === "ainewbie") {
+    if (/0798893333|gọi.*hotline|liên hệ qua sđt/i.test(lower)) {
+      issues.push("đẩy hotline thay vì thu lead");
+    }
+    if (!/sđt|email|liên hệ|cho em|xin/i.test(lower)) {
+      issues.push("thiếu hỏi contact khi hỏi sản phẩm");
+    }
+    if (!/sabo|website|app|automation|doanh nghiệp/i.test(lower)) {
+      issues.push("thiếu giới thiệu sản phẩm SABO");
+    }
   }
 
   return { ok: issues.length === 0, issues };

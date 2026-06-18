@@ -53,6 +53,22 @@ function testFlowContract() {
   assert(getNextMissingField(p, contract) === "business_type", "optional field next");
 }
 
+function testNoHotlineDump() {
+  const { matchTemplate } = require("../src/ai/templates");
+  const page = { projectSlug: "ainewbie", tier: "t1" };
+  const q = "ngoài học ra thì còn sản phẩm gì nữa không?";
+  const hit = matchTemplate(q, page);
+  assert(hit, "product question should match template");
+  assert(!/0798893333/i.test(hit), "template must not dump hotline");
+  assert(/sđt|email|liên hệ/i.test(hit), "template must ask contact");
+
+  const block = buildLeadPromptBlock(page, emptyProfile());
+  const sys = getSystemPrompt(page, block);
+  assert(!/kết thúc bằng hotline/i.test(sys), "system must not mandate hotline CTA");
+  assert(/KHÔNG đưa số hotline/i.test(sys), "lead block must forbid hotline dump");
+  assert(/THIẾU.*liên hệ|SĐT hoặc email/i.test(sys), "must inject contact ask");
+}
+
 function testPromptHasPersona() {
   const page = { projectSlug: "ainewbie" };
   const block = buildLeadPromptBlock(page, emptyProfile());
@@ -60,6 +76,7 @@ function testPromptHasPersona() {
   assert(sys.includes("UYỂN NHI"), "system has Uyển Nhi");
   assert(sys.includes("THIẾU"), "system has missing field hint");
   assert(getUyenNhiBlock().includes("em"), "DNA voice");
+  assert(getUyenNhiBlock().includes("THU LEAD"), "DNA has lead capture");
 }
 
 async function testMultiTurn() {
@@ -90,6 +107,8 @@ async function main() {
   console.log("  extract entities: OK");
   testFlowContract();
   console.log("  page contract flow: OK");
+  testNoHotlineDump();
+  console.log("  no hotline dump on product Q: OK");
   testPromptHasPersona();
   console.log("  persona in system prompt: OK");
   await testMultiTurn();
