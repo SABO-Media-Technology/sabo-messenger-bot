@@ -31,7 +31,7 @@ function trimHistory(messages) {
 /**
  * Non-streaming chat completion — sync reply for Messenger.
  */
-async function chatCompletion(systemPrompt, history) {
+async function chatCompletion(systemPrompt, history, options = {}) {
   const cfg = getLlmConfig();
   if (!cfg) {
     throw new Error("No LLM configured (set GROQ_API_KEY or OPENAI_API_KEY)");
@@ -42,13 +42,15 @@ async function chatCompletion(systemPrompt, history) {
     ...trimHistory(history),
   ];
 
+  const temperature = typeof options.temperature === "number" ? options.temperature : 0.5;
+
   const { data } = await axios.post(
     `${cfg.baseUrl}/chat/completions`,
     {
       model: cfg.model,
       messages,
       max_tokens: MAX_TOKENS,
-      temperature: 0.5,
+      temperature,
     },
     {
       headers: {

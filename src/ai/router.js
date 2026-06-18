@@ -24,6 +24,7 @@ const {
 } = require("../leads/flow");
 const { getPageContract, getVerticalId } = require("../strategies/page-contracts");
 const { fetchMessengerProfile, deriveHonorific, buildHonorificAddress } = require("../facebook/profile");
+const { buildPostQualifyFallback } = require("../leads/post-qualify-consult");
 const { logger } = require("../utils/logger");
 
 function buildPromptWithRag(basePrompt, ragContext) {
@@ -34,21 +35,11 @@ KIẾN THỨC THAM KHẢO (Brain RAG — ưu tiên nếu liên quan):
 ${ragContext}`;
 }
 
-function postQualifyFallback(page, profile, sessionMeta) {
-  const address = buildHonorificAddress(sessionMeta);
-  const need = (profile.need || "dự án").slice(0, 80);
-  const isWeb = /website|web|trang/i.test(need);
-  const tip = isWeb
-    ? "landing giới thiệu + form liên hệ, hoặc web bán hàng có giỏ hàng — tùy mục tiêu kinh doanh"
-    : "scope và lộ trình triển khai phù hợp SME";
-  return `Dạ ${address}! Về nhu cầu ${need}: em gợi ý nhanh ${tip}. Team SABO đã lưu SĐT của anh/chị — sẽ liên hệ tư vấn chi tiết và báo giá sát scope nhé!`;
-}
-
-function fallbackReply(page, profile, sessionMeta) {
+function fallbackReply(page, profile, sessionMeta, userText = "") {
   if (profile && sessionMeta) {
     const contract = getPageContract(page);
     if (isPostQualify(profile, contract, sessionMeta)) {
-      return postQualifyFallback(page, profile, sessionMeta);
+      return buildPostQualifyFallback(page, profile, sessionMeta, userText);
     }
   }
   return (
@@ -182,11 +173,11 @@ async function generateReply(page, senderId, userText) {
   }
 
   if (!isLlmConfigured()) {
-    const fb = fallbackReply(page, profile, meta);
+    const fb = fallbackReply(page, profile, meta, text);
     recordReply(page, senderId, text, fb);
-    maybeQueueLead(page, senderId, text, "fallback-no-llm");
+    maybeQueueLead(page, senderId, text, postQualify ? "fallback-no-llm:consult" : "fallback-no-llm");
     maybeQueueCompleteLead(page, senderId, text, "fallback-no-llm", profile, meta);
-    return { text: fb, layer: "fallback-no-llm" };
+    return { text: fb, layer: postQualify ? "fallback-no-llm:consult" : "fallback-no-llm" };
   }
 
   const history = getHistory(page.id, senderId);
@@ -210,10 +201,11 @@ async function generateReply(page, senderId, userText) {
       }
     }
 
-    const reply = await chatCompletion(systemPrompt, [
-      ...history,
-      { role: "user", content: text },
-    ]);
+    const reply = await chatCompletion(
+      systemPrompt,
+      [...history, { role: "user", content: text }],
+      { temperature: postQualify ? 0.65 : 0.5 },
+    );
 
     recordReply(page, senderId, text, reply);
     maybeQueueLead(page, senderId, text, layer);
@@ -241,11 +233,11 @@ async function generateReply(page, senderId, userText) {
       pageId: page.id,
       error: err.message,
     });
-    const fb = fallbackReply(page, profile, meta);
+    const fb = fallbackReply(page, profile, meta, text);
     recordReply(page, senderId, text, fb);
-    maybeQueueLead(page, senderId, text, "fallback-error");
+    maybeQueueLead(page, senderId, text, postQualify ? "fallback-error:consult" : "fallback-error");
     maybeQueueCompleteLead(page, senderId, text, "fallback-error", profile, meta);
-    return { text: fb, layer: "fallback-error" };
+    return { text: fb, layer: postQualify ? "fallback-error:consult" : "fallback-error" };
   }
 }
 

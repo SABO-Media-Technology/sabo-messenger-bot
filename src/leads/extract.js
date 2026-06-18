@@ -112,7 +112,41 @@ function looksLikeNeed(text) {
   return signals.some((s) => lower.includes(s));
 }
 
+function looksLikeNeedSignal(text) {
+  const lower = (text || "").toLowerCase();
+  return ["cần", "muốn", "làm", "app", "website", "web", "thiết kế", "automation"].some((s) =>
+    lower.includes(s),
+  );
+}
+
+const NEED_PIVOT_RE =
+  /giờ|thay vì|chuyển sang|đổi sang|lại thích|muốn làm|thích làm|không làm.*nữa|bỏ.*làm/i;
+
+function isNeedPivot(text) {
+  const t = (text || "").trim();
+  if (!t) return false;
+  return NEED_PIVOT_RE.test(t) || (/app|website|web|trang|landing/i.test(t) && t.length >= 8);
+}
+
+function extractNeedUpdate(text, existingNeed) {
+  if (!existingNeed) return null;
+  const t = (text || "").trim();
+  if (!t || t.length < 6) return null;
+  if (looksLikeConsultationQuestion(t) && !isNeedPivot(t)) return null;
+
+  if (isNeedPivot(t) || (looksLikeNeedSignal(t) && !PRICING_RE.test(t))) {
+    if (/app|ứng dụng|mobile/i.test(t)) return t.slice(0, 300);
+    if (/website|web|trang|landing|bán hàng/i.test(t)) return t.slice(0, 300);
+    if (NEED_PIVOT_RE.test(t)) return t.slice(0, 300);
+  }
+  return null;
+}
+
+const PRICING_RE = /giá|bao nhiêu|price|cost|báo giá|quote|ngân sách|budget|\d+\s*tr\b/i;
+
 function extractNeed(text, existingNeed) {
+  const pivot = extractNeedUpdate(text, existingNeed);
+  if (pivot) return pivot;
   if (existingNeed) return null;
   const t = (text || "").trim();
   if (looksLikeConsultationQuestion(t)) return null;
@@ -208,4 +242,6 @@ module.exports = {
   looksLikeNeed,
   refusesName,
   looksLikeConsultationQuestion,
+  extractNeedUpdate,
+  isNeedPivot,
 };

@@ -6,6 +6,7 @@
 const { getPageContract, getVertical, getFieldLabel } = require("../strategies/page-contracts");
 const { hasContact } = require("./extract");
 const { buildHonorificAddress } = require("../facebook/profile");
+const { buildPostQualifyPricingHint } = require("./post-qualify-consult");
 
 const REQUIRED_FIELDS = ["need", "contact"];
 const OPTIONAL_FIELDS = ["business_type", "timeline", "budget"];
@@ -106,10 +107,14 @@ CHẾ ĐỘ TƯ VẤN SAU QUALIFY (ƯU TIÊN CAO NHẤT):
 - Lead ĐÃ ĐỦ contact + nhu cầu. Xưng hô: ${address}.
 - KHÔNG hỏi lại tên, SĐT, email, ngành/lĩnh vực — đã có trong hồ sơ bên dưới.
 - KHÔNG nói "em cần biết tên", "cho em xin tên", "không thể thấy tên".
-- Khách hỏi tư vấn / thắc mắc / so sánh → trả lời ngắn gọn 3–5 ý dựa trên nhu cầu đã biết.
+- Khách hỏi tư vấn / thắc mắc / so sánh → trả lời 2–4 câu CỤ THỂ dựa trên nhu cầu đã biết — KHÔNG chỉ defer "team sẽ gọi".
+- Khách hỏi giá → ballpark + yếu tố ảnh hưởng giá (scope, tính năng, tích hợp) — vẫn nhắc team báo sát qua SĐT.
+- Khách đổi nhu cầu (web→app, v.v.) → cập nhật tư vấn theo nhu cầu MỚI trong câu trả lời.
+- Mỗi lượt trả lời KHÁC lượt trước — đọc history, không lặp nguyên văn.
 - Có thể upsell nhẹ dịch vụ liên quan (hosting, SEO, automation) nếu phù hợp — không ép.
-- Chỉ hỏi timeline/ngân sách khi khách chủ động hỏi báo giá chi tiết hoặc muốn triển khai gấp.
-- Kết thúc: nhắc team SABO sẽ liên hệ theo SĐT đã lưu — không dump hotline.
+- Kết thúc nhẹ: team SABO đã có SĐT — không dump hotline.
+
+${buildPostQualifyPricingHint()}
 `.trim();
 }
 

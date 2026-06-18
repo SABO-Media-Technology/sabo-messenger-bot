@@ -30,9 +30,88 @@ const { clearThread, setSessionMeta, setLeadProfile, getLeadProfile } = require(
 const { refusesName } = require("../src/leads/extract");
 const { buildGreetingForSession, shouldSkipNameField } = require("../src/leads/flow");
 const { matchTemplate } = require("../src/ai/templates");
+const { buildPostQualifyFallback } = require("../src/leads/post-qualify-consult");
+const { extractNeedUpdate } = require("../src/leads/extract");
+const { getHistory } = require("../src/session/store");
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
+}
+
+function testPostQualifyFallbackVaries() {
+  const page = { projectSlug: "sabo-mt" };
+  const profile = {
+    ...emptyProfile(),
+    need: "Làm website bán hàng",
+    phone: "0961167717",
+    qualified: true,
+  };
+  const meta = { honorific: "anh/chị" };
+
+  const consultReply = buildPostQualifyFallback(
+    page,
+    profile,
+    meta,
+    "mày không tư vấn sơ về trang web à?",
+  );
+  const pricingReply = buildPostQualifyFallback(page, profile, meta, "giá cả như nào ?");
+
+  assert(consultReply !== pricingReply, "post-qualify fallback must vary by intent");
+  assert(/giá|scope|tr\b|ngân sách|tùy/i.test(pricingReply), "pricing reply mentions factors");
+  assert(/web|landing|giỏ|form/i.test(consultReply), "consult reply mentions web advice");
+  assert(!/scope và lộ trình triển khai phù hợp SME/.test(pricingReply), "no generic static loop text");
+}
+
+function testNeedUpdateOnPivot() {
+  const updated = extractNeedUpdate("giờ tôi lại thích làm app rồi", "Làm website bán hàng");
+  assert(updated && /app/i.test(updated), "need updates on pivot to app");
+}
+
+async function testPostQualifyPricingNotIdentical() {
+  loadPageRegistry();
+  const page = getPage("332950393234346");
+  const senderId = "test_post_qualify_pricing";
+  clearThread(page.id, senderId);
+
+  const savedGroq = process.env.GROQ_API_KEY;
+  const savedOpenai = process.env.OPENAI_API_KEY;
+  delete process.env.GROQ_API_KEY;
+  delete process.env.OPENAI_API_KEY;
+
+  try {
+    setLeadProfile(
+      page.id,
+      senderId,
+      {
+        ...emptyProfile(),
+        need: "Làm website bán hàng",
+        phone: "0961167717",
+        qualified: true,
+        queued: true,
+      },
+      page.projectSlug,
+    );
+    setSessionMeta(page.id, senderId, { honorific: "anh/chị", fbProfileFetched: true });
+
+    const { text: consultText } = await generateReply(
+      page,
+      senderId,
+      "mày không tư vấn sơ về trang web à?",
+    );
+    const { text: pricingText } = await generateReply(page, senderId, "giá cả như nào ?");
+
+    assert(consultText !== pricingText, "post-qualify turns must not repeat identical text");
+    assert(/giá|scope|tr\b|tùy|ngân sách/i.test(pricingText), "pricing turn mentions price factors");
+    assert(!/xin tên|cho em.*tên/i.test(pricingText), "no re-ask name after qualify");
+
+    const history = getHistory(page.id, senderId);
+    assert(history.length >= 2, "history records both post-qualify turns");
+  } finally {
+    if (savedGroq) process.env.GROQ_API_KEY = savedGroq;
+    if (savedOpenai) process.env.OPENAI_API_KEY = savedOpenai;
+  }
+
+  console.log("  post-qualify pricing ≠ consult (no LLM): OK");
 }
 
 function testExtract() {
@@ -245,6 +324,10 @@ async function main() {
   console.log("  page contract flow: OK");
   testPostQualifyPromptBlock();
   console.log("  post-qualify prompt block: OK");
+  testPostQualifyFallbackVaries();
+  console.log("  post-qualify fallback varies by intent: OK");
+  testNeedUpdateOnPivot();
+  console.log("  need pivot web→app: OK");
   testVerticalMapping();
   testNameRefusalAndFbProfile();
   console.log("  FB profile + name refusal rules: OK");
@@ -261,6 +344,7 @@ async function main() {
 
   await testNameRefusalReply();
   await testSaboMtPostQualifyMultiTurn();
+  await testPostQualifyPricingNotIdentical();
   await testMultiTurnAinewbie();
 
   console.log("\nAll lead-flow tests passed.\n");
