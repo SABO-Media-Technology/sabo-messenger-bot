@@ -4,7 +4,7 @@
  */
 
 const { getPageContract, getVertical, getFieldLabel } = require("../strategies/page-contracts");
-const { hasContact } = require("./extract");
+const { hasContact, hasVerifiedPhone } = require("./extract");
 const { buildHonorificAddress } = require("../facebook/profile");
 const { buildPostQualifyPricingHint } = require("./post-qualify-consult");
 
@@ -76,13 +76,13 @@ function isLeadComplete(profile, contract, sessionMeta = {}) {
 
 function markQualified(profile, contract, sessionMeta = {}) {
   const complete = isLeadComplete(profile, contract, sessionMeta);
-  if (!complete) return { ...profile, qualified: false };
-  if (profile.qualified) return profile;
+  if (!complete) return { ...profile, qualified: false, queued: profile.queued && complete };
+  if (profile.qualified && complete) return profile;
   return { ...profile, qualified: true };
 }
 
 function isPostQualify(profile, contract, sessionMeta = {}) {
-  return Boolean(profile.qualified || isLeadComplete(profile, contract, sessionMeta));
+  return isLeadComplete(profile, contract, sessionMeta);
 }
 
 function buildCollectedSummary(profile, sessionMeta = {}) {
@@ -102,21 +102,26 @@ function buildCollectedSummary(profile, sessionMeta = {}) {
 
 function buildPostQualifyBlock(profile, sessionMeta = {}) {
   const address = buildHonorificAddress(sessionMeta);
+  const hasPhone = hasVerifiedPhone(profile);
+  const contactLine = hasPhone
+    ? `- Kết thúc nhẹ: team SABO đã có SĐT — sẽ liên hệ báo sát, không dump hotline.`
+    : `- CHƯA CÓ SĐT/Zalo hợp lệ — KHÔNG nói "đã có SĐT" hay "team sẽ gọi". Kết bằng xin SĐT/Zalo MỘT lần nếu phù hợp.`;
   return `
 CHẾ ĐỘ TƯ VẤN SAU QUALIFY (ƯU TIÊN CAO NHẤT):
-- Lead ĐÃ ĐỦ contact + nhu cầu. Xưng hô: ${address}.
-- KHÔNG hỏi lại tên, SĐT, email, ngành/lĩnh vực — đã có trong hồ sơ bên dưới.
+- Lead đã có nhu cầu${hasPhone ? " + contact" : ""}. Xưng hô: ${address}.
+- KHÔNG hỏi lại tên${hasPhone ? ", SĐT, email" : ""}, ngành/lĩnh vực — đã có trong hồ sơ bên dưới.
 - KHÔNG nói "em cần biết tên", "cho em xin tên", "không thể thấy tên".
 - Viết như chat Messenger: 2–4 câu tự nhiên — KHÔNG list (1)(2)(3) trừ khi khách xin breakdown.
 - Khách chỉ chào/cảm ơn → chào lại ngắn, KHÔNG nhắc lại essay tư vấn cũ.
 - Khách hỏi tư vấn / thắc mắc / so sánh → trả lời CỤ THỂ theo câu HIỆN TẠI — KHÔNG chỉ defer "team sẽ gọi".
-- Khách hỏi giá → ballpark + yếu tố ảnh hưởng giá (scope, tính năng, tích hợp) — vẫn nhắc team báo sát qua SĐT.
+- Khách hỏi giá → ballpark + yếu tố ảnh hưởng giá (scope, tính năng, tích hợp)${hasPhone ? " — vẫn nhắc team báo sát qua SĐT." : " — xin SĐT/Zalo để team báo sát."}
 - Khách đổi nhu cầu (web→app, v.v.) → cập nhật tư vấn theo nhu cầu MỚI trong câu trả lời.
 - Mỗi lượt trả lời KHÁC lượt trước — đọc history, không lặp nguyên văn hay opener "Dạ anh/chị! Về...".
 - Có thể upsell nhẹ dịch vụ liên quan (hosting, SEO, automation) nếu phù hợp — không ép.
-- Kết thúc nhẹ: team SABO đã có SĐT — không dump hotline.
+${contactLine}
+- CẤM TUYỆT ĐỐI nói "đã có SĐT" / "team sẽ gọi" nếu hồ sơ KHÔNG có SĐT hợp lệ.
 
-${buildPostQualifyPricingHint()}
+${buildPostQualifyPricingHint(hasPhone)}
 `.trim();
 }
 
@@ -126,6 +131,7 @@ function buildLeadPromptBlock(page, profile, sessionMeta = {}) {
   const collected = buildCollectedSummary(profile, sessionMeta);
   const complete = isLeadComplete(profile, contract, sessionMeta);
   const postQualify = isPostQualify(profile, contract, sessionMeta);
+  const hasPhone = hasVerifiedPhone(profile);
   const next = postQualify ? null : getNextMissingField(profile, contract, sessionMeta, { intakeOnly: true });
   const address = buildHonorificAddress(sessionMeta);
 
@@ -139,10 +145,14 @@ ${sessionMeta.nameRefused ? "Khách từ chối cho tên — chỉ dùng anh/ch�
 
 HỒ SƠ LEAD ĐÃ THU (PSID session — PHẢI nhớ xuyên suốt):
 ${collected}
+SĐT HỢP LỆ: ${hasPhone ? `CÓ (${profile.phone})` : "CHƯA CÓ — CẤM nói đã có SĐT"}
 
 QUY TẮC HỘI THOẠI (ƯU TIÊN CAO — BẮT BUỘC):
 ${vertical.forbidden.map((f) => `- ${f}`).join("\n")}
 - CẤM: "em cần biết tên", "cho em xin tên", "không thể thấy tên user", dump hotline khi chưa được hỏi.
+- CẤM: "đã có SĐT", "team sẽ gọi", "team đã có SĐT" khi SĐT HỢP LỆ = CHƯA CÓ.
+- Khách hỏi "SĐT của tôi là gì" → nếu có SĐT thì đọc lại; nếu chưa có → "Em chưa lưu SĐT, cho em xin SĐT/Zalo nhé".
+- Khách phủ nhận đã cho SĐT → xin lỗi, xóa SĐT sai, xin SĐT lại MỘT lần.
 - Thứ tự tự nhiên: trả lời câu hỏi → làm rõ nhu cầu/loại dịch vụ → khi sẵn sàng báo giá mới xin SĐT/Zalo.
 - SABO/quán chủ động liên hệ khách sau khi có contact.
 `.trim();

@@ -21,9 +21,8 @@ function pickOpener(address, seed) {
   return pickVariant(
     [
       `Dạ ${address}!`,
-      `Ừ ${address},`,
-      `${address} ơi,`,
       `Em nghe rồi ạ —`,
+      `${address} ơi,`,
     ],
     seed,
   );
@@ -32,9 +31,9 @@ function pickOpener(address, seed) {
 function pickCloser(seed) {
   return pickVariant(
     [
-      "Anh/chị cần em làm rõ thêm phần nào cứ nhắn nhé!",
+      "Anh/chị muốn em đi sâu giá, timeline hay tính năng ạ?",
       "Có gì thắc mắc thêm anh/chị cứ hỏi em tiếp ạ.",
-      "Muốn đi sâu giá hay timeline thì nhắn em nhé!",
+      "Muốn em gợi scope cụ thể thì nhắn em nhé!",
     ],
     seed,
   );

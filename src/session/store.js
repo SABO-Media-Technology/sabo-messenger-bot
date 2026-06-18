@@ -79,7 +79,14 @@ async function hydrateThread(pageId, senderId, projectSlug) {
 
   if (remote) {
     if (remote.messages?.length) entry.messages = remote.messages;
-    if (remote.lead) entry.lead = { ...emptyProfile(), ...remote.lead };
+    if (remote.lead) {
+      const { clearFalsePhone } = require("../leads/extract");
+      entry.lead = clearFalsePhone({ ...emptyProfile(), ...remote.lead });
+      if (!entry.lead.phone && entry.lead.qualified) {
+        entry.lead.qualified = false;
+        entry.lead.queued = false;
+      }
+    }
     if (remote.meta) entry.meta = { ...emptySessionMeta(), ...remote.meta };
     entry.updatedAt = Date.now();
   }

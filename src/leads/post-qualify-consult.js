@@ -22,6 +22,7 @@ const {
 
 const { pickOpener, pickCloser, hashSeed } = require("../responses/variation");
 const { isDiscoveryQuestion, buildDiscoveryReply } = require("../sales/discovery");
+const { hasVerifiedPhone } = require("./extract");
 
 
 
@@ -125,11 +126,16 @@ function pricingBallpark(need) {
 
 
 
+function handoffLine(hasPhone) {
+  if (hasPhone) return "Team SABO đã có SĐT — sẽ liên hệ báo sát hơn.";
+  return "Cho em xin SĐT hoặc Zalo để team báo giá chi tiết nhé ạ.";
+}
+
 function messageMentionsApp(text) {
   return /app|mobile|ứng dụng/i.test(text || "");
 }
 
-function consultSnippet(need, seed = 0, userText = "") {
+function consultSnippet(need, seed = 0, userText = "", hasPhone = false) {
 
   const n = (need || "").toLowerCase();
   const text = (userText || "").toLowerCase();
@@ -167,11 +173,10 @@ function consultSnippet(need, seed = 0, userText = "") {
   }
 
   const tips = [
-
     "Em có thể gợi scope và lộ trình phù hợp quy mô SME — ưu tiên bản chạy nhanh rồi iterate.",
-
-    "Tùy mục tiêu kinh doanh, em sẽ gợi hướng MVP hoặc gói vertical — team đã có SĐT để báo sát hơn.",
-
+    hasPhone
+      ? "Tùy mục tiêu kinh doanh, em sẽ gợi hướng MVP hoặc gói vertical — team đã có SĐT để báo sát hơn."
+      : "Tùy mục tiêu kinh doanh, em sẽ gợi hướng MVP hoặc gói vertical — cho em xin SĐT/Zalo để team báo sát nhé.",
   ];
 
   return tips[seed % tips.length];
@@ -234,6 +239,9 @@ function buildPostQualifyFallback(page, profile, sessionMeta, userText) {
 
   const seed = hashSeed(`${sessionMeta.profileName || ""}:${text}`);
 
+  const hasPhone = hasVerifiedPhone(profile);
+  const handoff = handoffLine(hasPhone);
+
 
 
   const casual = buildCasualReply(address, text, seed);
@@ -254,13 +262,15 @@ function buildPostQualifyFallback(page, profile, sessionMeta, userText) {
 
     const ballpark = pricingBallpark(need);
 
-    const lines = [
-
-      `${opener} Giá ${need} phụ thuộc scope cụ thể — ${ballpark}. Team đã có SĐT, sẽ gọi báo sát sau vài câu hỏi ngắn. ${closer}`,
-
-      `${opener} Về giá thì ${ballpark} — còn tùy tính năng và tích hợp nữa. Em note SĐT anh/chị rồi, team báo chi tiết qua call nhé.`,
-
-    ];
+    const lines = hasPhone
+      ? [
+          `${opener} Giá ${need} phụ thuộc scope cụ thể — ${ballpark}. Team đã có SĐT, sẽ gọi báo sát sau vài câu hỏi ngắn. ${closer}`,
+          `${opener} Về giá thì ${ballpark} — còn tùy tính năng và tích hợp nữa. Em note SĐT anh/chị rồi, team báo chi tiết qua call nhé.`,
+        ]
+      : [
+          `${opener} Giá ${need} phụ thuộc scope cụ thể — ${ballpark}. Cho em xin SĐT/Zalo để team báo sát nhé ạ.`,
+          `${opener} Về giá thì ${ballpark} — còn tùy tính năng và tích hợp. ${handoff}`,
+        ];
 
     return lines[seed % lines.length];
 
@@ -270,15 +280,17 @@ function buildPostQualifyFallback(page, profile, sessionMeta, userText) {
 
   if (looksLikeConsultationQuestion(text) || /tư vấn|giải thích|như thế nào|là gì/i.test(text)) {
 
-    const tip = consultSnippet(need, seed, text);
+    const tip = consultSnippet(need, seed, text, hasPhone);
 
-    const lines = [
-
-      `${opener} ${tip} Team SABO đã có SĐT — sẽ liên hệ chi tiết hơn, anh/chị cứ hỏi thêm em trả lời tiếp nhé!`,
-
-      `${opener} ${tip} ${closer}`,
-
-    ];
+    const lines = hasPhone
+      ? [
+          `${opener} ${tip} ${handoff} Anh/chị cứ hỏi thêm em trả lời tiếp nhé!`,
+          `${opener} ${tip} ${closer}`,
+        ]
+      : [
+          `${opener} ${tip} ${handoff}`,
+          `${opener} ${tip} Anh/chị muốn em gợi scope cụ thể hơn không ạ?`,
+        ];
 
     return lines[seed % lines.length];
 
@@ -290,15 +302,17 @@ function buildPostQualifyFallback(page, profile, sessionMeta, userText) {
 
     const updated = extractNeedUpdate(text, need) || text.slice(0, 80);
 
-    const tip = consultSnippet(updated, seed, text);
+    const tip = consultSnippet(updated, seed, text, hasPhone);
 
-    return `${opener} Em ghi nhận anh/chị muốn đổi sang ${updated.slice(0, 80)}. ${tip} Team sẽ cập nhật hồ sơ và liên hệ báo giá qua SĐT đã lưu ạ!`;
+    return hasPhone
+      ? `${opener} Em ghi nhận anh/chị muốn đổi sang ${updated.slice(0, 80)}. ${tip} Team sẽ cập nhật hồ sơ và liên hệ báo giá qua SĐT đã lưu ạ!`
+      : `${opener} Em ghi nhận anh/chị muốn đổi sang ${updated.slice(0, 80)}. ${tip} ${handoff}`;
 
   }
 
 
 
-  const tip = consultSnippet(need, seed, text);
+  const tip = consultSnippet(need, seed, text, hasPhone);
 
   const relates = messageRelatesToNeed(text, need);
 
@@ -316,7 +330,7 @@ function buildPostQualifyFallback(page, profile, sessionMeta, userText) {
 
         `${opener} ${tip} ${closer}`,
 
-        `${opener} ${tip} Anh/chị cần em làm rõ phần nào thêm (giá, timeline, tính năng) ạ?`,
+        `${opener} ${tip} Anh/chị muốn em đi sâu giá, timeline hay tính năng ạ?`,
 
       ];
 
@@ -326,7 +340,11 @@ function buildPostQualifyFallback(page, profile, sessionMeta, userText) {
 
 
 
-function buildPostQualifyPricingHint() {
+function buildPostQualifyPricingHint(hasPhone = true) {
+
+  const contactKet = hasPhone
+    ? "- Kết: team đã có SĐT → báo sát sau call ngắn, nhưng vẫn cho khách cảm giác được tư vấn ngay."
+    : "- Kết: CHƯA có SĐT → xin SĐT/Zalo, KHÔNG nói team sẽ gọi.";
 
   return `
 
@@ -342,7 +360,7 @@ BÁO GIÁ SAU QUALIFY (khi khách hỏi giá):
 
 - Viết như chat Messenger: 2–4 câu tự nhiên, KHÔNG list (1)(2)(3) trừ khi khách xin breakdown chi tiết.
 
-- Kết: team đã có SĐT → báo sát sau call ngắn, nhưng vẫn cho khách cảm giác được tư vấn ngay.`.trim();
+${contactKet}`.trim();
 
 }
 

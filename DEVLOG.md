@@ -1,3 +1,38 @@
+## [2026-06-18] Fix false SĐT claims + scope/phone recall regression
+
+### Đã làm
+- **Root cause:** `isPostQualify` kích hoạt khi `qualified=true` dù không có SĐT; prompt/fallback hardcode "đã có SĐT"; không có handler scope/phone recall/frustration
+- `extract.js` — validate SĐT VN, `asksForOwnPhone`, `deniesGivingPhone`, `isFrustration`, `clearFalsePhone`
+- `flow.js` — post-qualify chỉ khi `isLeadComplete` (need + contact hợp lệ); prompt block ground truth SĐT
+- `router.js` — layers: `phone-recall`, `phone-denial`, `frustration-recovery`, `sales-scope` (trước LLM)
+- `discovery.js` — `buildScopeReply()` web-lead (trang, form, Zalo, timeline)
+- `post-qualify-consult.js` — chỉ claim SĐT khi `hasVerifiedPhone(profile)`
+- `store.js` — hydrate Supabase clear SĐT invalid + reset qualified
+- `prompts.js` + `variation.js` — cấm claim SĐT giả; bỏ "Ừ anh/chị" và closer yếu
+- `scripts/test-conversation-regression.cjs` — 5 case từ conversation thật CEO paste
+- `test:predeploy` thêm conversation-regression
+
+### Files changed
+- src/leads/extract.js, flow.js, post-qualify-consult.js
+- src/ai/router.js
+- src/sales/discovery.js
+- src/session/store.js
+- src/responses/prompts.js, variation.js
+- scripts/test-conversation-regression.cjs (new)
+- scripts/test-lead-flow.cjs, package.json
+- DEVLOG.md
+
+### Verify
+```bash
+npm run test:predeploy  # PASS 2026-06-18
+```
+
+### Chưa làm / handoff
+- `npm run deploy:render` fail: Render API không load `srv-d8psv69194ac739luu00` — CEO verify `RENDER_API_KEY` trong `.env.secrets` rồi chạy lại hoặc push main → auto-deploy GitHub
+- Sau deploy: test live PSID conversation với 4 câu regression trên Messenger SABO Media page
+
+---
+
 ## [2026-06-18] Test gate predeploy + sales-discovery script (CEO directive)
 
 ### Đã làm

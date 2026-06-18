@@ -3,7 +3,45 @@
  */
 
 const EMAIL_RE = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
-const PHONE_RE = /(?:\+?84|0)\d{8,10}/;
+const PHONE_RE = /(?:\+?84|0)\d{9,10}\b/;
+
+/** VN mobile/landline — 10 digits starting with 0, or +84 */
+function isValidPhone(phone) {
+  if (!phone || typeof phone !== "string") return false;
+  const raw = phone.trim();
+  if (/^\+?84\d{9}$/.test(raw.replace(/\s/g, ""))) return true;
+  return /^0\d{9}$/.test(raw.replace(/\s/g, ""));
+}
+
+function normalizePhone(phone) {
+  if (!phone) return null;
+  const raw = phone.trim().replace(/\s/g, "");
+  if (!isValidPhone(raw)) return null;
+  if (raw.startsWith("+84")) return `0${raw.slice(3)}`;
+  if (raw.startsWith("84") && raw.length === 11) return `0${raw.slice(2)}`;
+  return raw;
+}
+
+const ASK_OWN_PHONE_RE =
+  /số\s*(điện\s*thoại|dt|phone).*(của\s*(tôi|em|mình)|tôi|em|mình)\s*(là\s*)?(gì|bao nhiêu|đâu)|(?:tôi|em|mình)\s*(đã\s*)?(cho|gửi|đưa).*(số|sdt|zalo).*(chưa|đâu|gì)/i;
+
+const DENY_PHONE_RE =
+  /(?:tao|tôi|em|mình)\s*(đã\s*)?(gửi|cho|đưa|nói).*(số|sdt|zalo|điện\s*thoại).*(đâu|chưa|gì)|chưa\s*(cho|gửi|đưa).*(số|sdt)|(?:mày|bạn|em)\s*(có|lưu|biết).*(số|sdt).*(đâu|gì)|(?:sao|tại sao).*(nói|bảo).*(đã\s*có|đã\s*lưu).*(số|sdt)/i;
+
+const FRUSTRATION_RE =
+  /(?:m\s*|mày|bạn)\s*(có\s*)?trả lời\s*(được\s*)?(gì|không)|vô dụng|không\s*hiểu\s*gì|nói\s*hoài|lặp\s*hoài|chán\s*quá/i;
+
+function asksForOwnPhone(text) {
+  return ASK_OWN_PHONE_RE.test(text || "");
+}
+
+function deniesGivingPhone(text) {
+  return DENY_PHONE_RE.test(text || "");
+}
+
+function isFrustration(text) {
+  return FRUSTRATION_RE.test(text || "");
+}
 
 const NAME_PATTERNS = [
   /(?:tên (?:tôi|em|mình) (?:là|la))\s+([^\n,.!?]{2,40})/i,
@@ -27,7 +65,8 @@ const SKIP_NAME = new Set([
 
 function extractPhone(text) {
   const m = (text || "").match(PHONE_RE);
-  return m ? m[0] : null;
+  if (!m) return null;
+  return normalizePhone(m[0]);
 }
 
 function extractEmail(text) {
@@ -205,7 +244,7 @@ function mergeLeadProfile(profile, text) {
   const zalo = extractZalo(text);
 
   if (phone && !next.phone) next.phone = phone;
-  if (zalo && !next.phone) next.phone = zalo;
+  if (zalo && !next.phone) next.phone = normalizePhone(zalo);
   if (email && !next.email) next.email = email;
   if (name && !next.name) next.name = name;
 
@@ -229,7 +268,23 @@ function mergeLeadProfile(profile, text) {
 }
 
 function hasContact(profile) {
-  return Boolean(profile.phone || profile.email);
+  if (profile.phone && isValidPhone(profile.phone)) return true;
+  return Boolean(profile.email);
+}
+
+function hasVerifiedPhone(profile) {
+  return Boolean(profile?.phone && isValidPhone(profile.phone));
+}
+
+function clearFalsePhone(profile) {
+  if (!profile?.phone) return profile;
+  if (isValidPhone(profile.phone)) return profile;
+  return { ...profile, phone: null, qualified: false, queued: false };
+}
+
+function maskPhone(phone) {
+  if (!phone || phone.length < 6) return phone;
+  return `${phone.slice(0, 4)}***${phone.slice(-3)}`;
 }
 
 module.exports = {
@@ -239,6 +294,14 @@ module.exports = {
   extractZalo,
   mergeLeadProfile,
   hasContact,
+  hasVerifiedPhone,
+  isValidPhone,
+  normalizePhone,
+  asksForOwnPhone,
+  deniesGivingPhone,
+  isFrustration,
+  clearFalsePhone,
+  maskPhone,
   looksLikeNeed,
   refusesName,
   looksLikeConsultationQuestion,

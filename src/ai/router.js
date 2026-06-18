@@ -21,7 +21,7 @@ const {
   hydrateThread,
 } = require("../session/store");
 const { queueLeadEvent } = require("../leads/queue");
-const { mergeLeadProfile, refusesName } = require("../leads/extract");
+const { mergeLeadProfile, refusesName, asksForOwnPhone, deniesGivingPhone, isFrustration, hasVerifiedPhone, clearFalsePhone } = require("../leads/extract");
 const {
   buildLeadPromptBlock,
   isLeadComplete,
@@ -32,7 +32,7 @@ const {
 const { getPageContract, getVerticalId } = require("../strategies/page-contracts");
 const { fetchMessengerProfile, deriveHonorific, buildHonorificAddress } = require("../facebook/profile");
 const { buildPostQualifyFallback, isCasualGreeting } = require("../leads/post-qualify-consult");
-const { detectSalesIntent, buildDiscoveryReply } = require("../sales/discovery");
+const { detectSalesIntent, buildDiscoveryReply, buildScopeReply } = require("../sales/discovery");
 const { logger } = require("../utils/logger");
 
 function buildPromptWithRag(basePrompt, ragContext) {
@@ -91,6 +91,27 @@ async function ensureSessionProfile(page, senderId) {
   return getSessionMeta(page.id, senderId);
 }
 
+function buildPhoneRecallReply(profile, sessionMeta) {
+  const address = buildHonorificAddress(sessionMeta);
+  if (hasVerifiedPhone(profile)) {
+    return `Dạ ${address}, em đang lưu SĐT ${profile.phone}. Anh/chị cần đổi số khác cứ nhắn em nhé!`;
+  }
+  return `Dạ ${address}, em chưa lưu SĐT của anh/chị. Cho em xin SĐT hoặc Zalo để team SABO liên hệ báo giá nhé ạ?`;
+}
+
+function buildPhoneDenialReply(sessionMeta) {
+  const address = buildHonorificAddress(sessionMeta);
+  return `Dạ em xin lỗi ${address} — em nhầm, em chưa có SĐT của anh/chị. Cho em xin SĐT hoặc Zalo để team liên hệ nhé ạ?`;
+}
+
+function buildFrustrationReply(profile, sessionMeta, userText) {
+  const address = buildHonorificAddress(sessionMeta);
+  if (hasVerifiedPhone(profile)) {
+    return `Dạ em xin lỗi ${address} — để em trả lời cụ thể hơn. Anh/chị muốn em gợi scope web, báo giá ballpark, hay giải thích quy trình làm việc ạ?`;
+  }
+  return `Dạ em xin lỗi ${address} — em chưa lưu SĐT nên chưa báo giá sát được. Cho em xin SĐT/Zalo, hoặc anh/chị muốn em gợi scope web trước cũng được ạ?`;
+}
+
 function updateLeadFromMessage(page, senderId, userText, sessionMeta) {
   let meta = sessionMeta || getSessionMeta(page.id, senderId);
   if (refusesName(userText)) {
@@ -99,7 +120,13 @@ function updateLeadFromMessage(page, senderId, userText, sessionMeta) {
   }
 
   const contract = getPageContract(page);
-  const prev = getLeadProfile(page.id, senderId);
+  let prev = getLeadProfile(page.id, senderId);
+  prev = clearFalsePhone(prev);
+
+  if (deniesGivingPhone(userText)) {
+    prev = { ...prev, phone: null, qualified: false, queued: false };
+  }
+
   const merged = markQualified(mergeLeadProfile(prev, userText), contract, meta);
   if (meta.profileName && !merged.name && !meta.nameRefused) {
     merged.name = meta.profileName;
@@ -172,6 +199,38 @@ async function generateReply(page, senderId, userText) {
   const leadBlock = buildLeadPromptBlock(page, profile, meta);
   const tplCtx = templateContext(page, profile, meta);
 
+  // Phone recall — ground truth from profile
+  if (asksForOwnPhone(text)) {
+    const phoneReply = buildPhoneRecallReply(profile, meta);
+    recordReply(page, senderId, text, phoneReply);
+    return { text: phoneReply, layer: "phone-recall" };
+  }
+
+  // User denies ever giving phone — clear false data, apologize
+  if (deniesGivingPhone(text)) {
+    const cleared = { ...profile, phone: null, qualified: false, queued: false };
+    setLeadProfile(page.id, senderId, cleared, page.projectSlug);
+    const denialReply = buildPhoneDenialReply(meta);
+    recordReply(page, senderId, text, denialReply);
+    return { text: denialReply, layer: "phone-denial" };
+  }
+
+  // Frustration — apologize, offer concrete help
+  if (isFrustration(text)) {
+    const frustrationReply = buildFrustrationReply(profile, meta, text);
+    recordReply(page, senderId, text, frustrationReply);
+    return { text: frustrationReply, layer: "frustration-recovery" };
+  }
+
+  // Scope request — concrete deliverables, not greeting
+  const salesIntent = detectSalesIntent(text);
+  if (salesIntent === "scope") {
+    const scopeReply = buildScopeReply(page, meta, text, "web-lead");
+    recordReply(page, senderId, text, scopeReply);
+    maybeQueueLead(page, senderId, text, "sales-scope");
+    return { text: scopeReply, layer: "sales-scope" };
+  }
+
   // Uyển Nhi greeting on first contact / get started
   if (isGreetingLike(text) || isGetStartedLike(text)) {
     const history = getHistory(page.id, senderId);
@@ -189,7 +248,6 @@ async function generateReply(page, senderId, userText) {
   }
 
   // Sales discovery — inspiring service ideas (not MVP/process essay)
-  const salesIntent = detectSalesIntent(text);
   if (salesIntent === "discovery") {
     const discoveryReply = buildDiscoveryReply(page, meta, text);
     recordReply(page, senderId, text, discoveryReply);

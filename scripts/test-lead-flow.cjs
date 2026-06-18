@@ -257,7 +257,8 @@ function testFlowContract() {
   assert(getNextMissingField(p, contract) === "contact", "second = contact");
   p.phone = "0901234567";
   assert(isLeadComplete(p, contract) === true, "complete with need+contact");
-  assert(isPostQualify({ ...p, qualified: true }, contract), "post-qualify when flagged");
+  assert(isPostQualify(p, contract), "post-qualify when complete");
+  assert(!isPostQualify({ ...p, phone: null, qualified: true }, contract), "no post-qualify without phone");
   assert(getNextMissingField(p, contract, {}, { intakeOnly: false }) === "business_type", "optional field when intakeOnly=false");
 }
 

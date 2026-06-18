@@ -31,6 +31,14 @@ const FORBIDDEN_PHRASES = [
   "gọi điện cho",
 ];
 
+const PHONE_GROUND_TRUTH = `
+GROUND TRUTH SĐT (BẮT BUỘC):
+- CHỈ nói "đã có SĐT" / "team sẽ gọi" / "team đã có SĐT" khi hồ sơ lead có SĐT hợp lệ (10 số, bắt đầu 0).
+- Khách hỏi "SĐT của tôi là gì" → có SĐT thì đọc lại; chưa có → "Em chưa lưu SĐT, cho em xin SĐT/Zalo nhé".
+- Khách phủ nhận đã cho SĐT → xin lỗi, KHÔNG tranh cãi, xin SĐT lại MỘT lần.
+- KHÔNG dùng "Ừ anh/chị" — quá thân. Dùng "Dạ anh/chị" hoặc "Em nghe rồi ạ".
+`.trim();
+
 const SHARED_RULES = `
 
 QUY TẮC CHUNG:
@@ -55,6 +63,9 @@ QUY TẮC CHUNG:
 - Sau khi lead ĐÃ QUALIFY (có contact + nhu cầu): chuyển sang tư vấn — KHÔNG hỏi lại tên/SĐT/ngành.
 
 - CẤM TUYỆT ĐỐI (không viết trong reply): ${FORBIDDEN_PHRASES.map((p) => `"${p}"`).join(", ")}.
+- CẤM nói "đã có SĐT" / "team sẽ gọi" khi hồ sơ CHƯA có SĐT hợp lệ.
+
+${PHONE_GROUND_TRUTH}
 
 - Chỉ đưa hotline ${HOTLINE} khi khách HỎI RÕ "số hotline", "số văn phòng", "liên hệ trực tiếp".
 

@@ -27,6 +27,7 @@ const DISCOVERY_PATTERNS = [
 
 const SCOPE_PATTERNS = [
   /scope|phạm vi|bao gồm|gồm những gì|quy trình|timeline|bao lâu|mất bao lâu/i,
+  /gợi\s*scope|cho\s*scope|scope\s*(đi|web|luôn|nhé)|đề\s*xuất\s*scope/i,
 ];
 
 const OBJECTION_PATTERNS = [
@@ -106,6 +107,28 @@ function buildDiscoveryReply(page, sessionMeta, userText = "") {
   return lines[seed % lines.length];
 }
 
+/** Concrete scope deliverables — web-lead default for SABO M&T */
+function buildScopeReply(page, sessionMeta, userText = "", scopeType = "web-lead") {
+  const address = buildHonorificAddress(sessionMeta);
+  const seed = hashSeed(`${sessionMeta?.profileName || ""}:${userText}:scope`);
+  const opener = pickOpener(address, seed);
+  const verticalId = getVerticalId(page);
+
+  if (scopeType === "web-lead" || verticalId === "sabo-mt-services") {
+    const lines = [
+      `${opener} Scope web thu lead thường gồm: trang chủ + giới thiệu dịch vụ, 1 landing thu form, nút Zalo/Messenger, SEO cơ bản. Timeline ballpark 3–6 tuần tùy số trang và tích hợp thanh toán. Anh/chị muốn bắt đầu landing thu lead hay full web bán hàng ạ?`,
+      `${opener} Em gợi scope web SME: 3–5 trang (home, dịch vụ, liên hệ), form thu SĐT, kết nối Zalo, hosting + SSL. Làm nhanh ~3–4 tuần, full giỏ hàng ~6–8 tuần. Anh/chị ưu tiên thu lead hay bán online trước ạ?`,
+    ];
+    return lines[seed % lines.length];
+  }
+
+  if (verticalId === "billiards-ops") {
+    return `${opener} Scope app giải billiards: đăng ký giải online, bracket tự động, thông báo kết quả — pilot ~4–6 tuần. Anh/chị muốn đặt bàn hay triển khai app giải trước ạ?`;
+  }
+
+  return buildDiscoveryReply(page, sessionMeta, userText);
+}
+
 /** Prompt block injected into system/Hermes prompts */
 function buildSalesDiscoveryPromptBlock() {
   return `
@@ -121,6 +144,8 @@ module.exports = {
   detectSalesIntent,
   isDiscoveryQuestion,
   buildDiscoveryReply,
+  buildScopeReply,
   buildSalesDiscoveryPromptBlock,
   DISCOVERY_PATTERNS,
+  SCOPE_PATTERNS,
 };
