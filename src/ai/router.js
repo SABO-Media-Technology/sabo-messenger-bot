@@ -4,8 +4,11 @@ const { fetchRagContext } = require("./rag");
 const { getSystemPrompt, HOTLINE } = require("../responses/prompts");
 const { getReplyText } = require("../responses/greeting");
 const { detectLeadIntent } = require("./intent");
-const { getHistory, appendTurn } = require("../session/store");
+const { getHistory, appendTurn, getLeadProfile, setLeadProfile } = require("../session/store");
 const { queueLeadEvent } = require("../leads/queue");
+const { mergeLeadProfile } = require("../leads/extract");
+const { buildLeadPromptBlock, isLeadComplete, getGreetingForPage } = require("../leads/flow");
+const { getPageContract } = require("../strategies/page-contracts");
 const { logger } = require("../utils/logger");
 
 function buildPromptWithRag(basePrompt, ragContext) {
@@ -23,6 +26,43 @@ function fallbackReply(page) {
   );
 }
 
+function isGreetingLike(text) {
+  return /^(xin chào|chào|hello|hi|hey|alo|dạ|shop ơi)/i.test((text || "").trim());
+}
+
+function isGetStartedLike(text) {
+  return /tìm hiểu thêm|bắt đầu|get started/i.test(text || "");
+}
+
+function updateLeadFromMessage(page, senderId, userText) {
+  const prev = getLeadProfile(page.id, senderId);
+  const merged = mergeLeadProfile(prev, userText);
+  setLeadProfile(page.id, senderId, merged);
+  return merged;
+}
+
+function maybeQueueCompleteLead(page, senderId, userText, layer, profile) {
+  const contract = getPageContract(page);
+  if (profile.queued) return;
+  if (!isLeadComplete(profile, contract) && !detectLeadIntent(userText) && page.tier !== "t2") {
+    return;
+  }
+  if (!isLeadComplete(profile, contract)) return;
+
+  const next = { ...profile, queued: true };
+  setLeadProfile(page.id, senderId, next);
+
+  queueLeadEvent({
+    page,
+    senderId,
+    userText,
+    replyLayer: layer,
+    profile: next,
+  }).catch((err) => {
+    logger.warn("lead_queue_async_failed", { error: err.message });
+  });
+}
+
 /**
  * Main reply pipeline — Layer 0 template → Layer 1/2 LLM (+ RAG) → fallback.
  */
@@ -32,21 +72,37 @@ async function generateReply(page, senderId, userText) {
     return { text: fallbackReply(page), layer: "fallback-empty" };
   }
 
+  const profile = updateLeadFromMessage(page, senderId, text);
+  const leadBlock = buildLeadPromptBlock(page, profile);
+
+  // Uyển Nhi greeting on first contact / get started
+  if (isGreetingLike(text) || isGetStartedLike(text)) {
+    const history = getHistory(page.id, senderId);
+    if (history.length === 0) {
+      const greeting = getGreetingForPage(page);
+      appendTurn(page.id, senderId, text, greeting);
+      maybeQueueLead(page, senderId, text, "greeting-intro");
+      return { text: greeting, layer: "greeting-intro" };
+    }
+  }
+
   // Layer 0
   const templateHit = matchTemplate(text, page);
   if (templateHit) {
     maybeQueueLead(page, senderId, text, "template");
+    maybeQueueCompleteLead(page, senderId, text, "template", profile);
     return { text: templateHit, layer: "template" };
   }
 
   if (!isLlmConfigured()) {
     const fb = fallbackReply(page);
     maybeQueueLead(page, senderId, text, "fallback-no-llm");
+    maybeQueueCompleteLead(page, senderId, text, "fallback-no-llm", profile);
     return { text: fb, layer: "fallback-no-llm" };
   }
 
   const history = getHistory(page.id, senderId);
-  const basePrompt = getSystemPrompt(page);
+  const basePrompt = getSystemPrompt(page, leadBlock);
   let layer = page.replyStrategy;
 
   try {
@@ -73,14 +129,15 @@ async function generateReply(page, senderId, userText) {
 
     appendTurn(page.id, senderId, text, reply);
     maybeQueueLead(page, senderId, text, layer);
+    maybeQueueCompleteLead(page, senderId, text, layer, getLeadProfile(page.id, senderId));
 
     if (page.replyStrategy === "human-handoff" && page.tier === "t2") {
       const hotline = page.hotline || HOTLINE;
       const alreadyHasHandoff = /hotline|liên hệ trực tiếp|team sabo billiards/i.test(reply);
-      const text = alreadyHasHandoff
+      const handoffText = alreadyHasHandoff
         ? reply
         : `${reply}\n\n— Team SABO Billiards sẽ liên hệ trực tiếp. Hotline: ${hotline}.`;
-      return { text, layer: "human-handoff" };
+      return { text: handoffText, layer: "human-handoff" };
     }
 
     return { text: reply, layer };
@@ -91,6 +148,7 @@ async function generateReply(page, senderId, userText) {
     });
     const fb = fallbackReply(page);
     maybeQueueLead(page, senderId, text, "fallback-error");
+    maybeQueueCompleteLead(page, senderId, text, "fallback-error", profile);
     return { text: fb, layer: "fallback-error" };
   }
 }
@@ -103,7 +161,8 @@ function maybeQueueLead(page, senderId, userText, layer) {
 
   if (!shouldQueue) return;
 
-  queueLeadEvent({ page, senderId, userText, replyLayer: layer }).catch((err) => {
+  const profile = getLeadProfile(page.id, senderId);
+  queueLeadEvent({ page, senderId, userText, replyLayer: layer, profile }).catch((err) => {
     logger.warn("lead_queue_async_failed", { error: err.message });
   });
 }

@@ -1,3 +1,45 @@
+## [2026-06-18] Uyển Nhi DNA + progressive lead capture
+
+### Đã làm
+- Wire persona **Uyển Nhi** từ `10-AI-BRAIN/hermes/shared/souls/uyen_nhi.md` → `src/personas/uyen-nhi.js` (distilled, không duplicate prose)
+- Page contract per `projectSlug`: goal, persona, lead fields (`src/strategies/page-contracts.js`)
+- Progressive lead profile per PSID+page trong session (`src/session/store.js` + `src/leads/extract.js` + `src/leads/flow.js`)
+- Router inject persona + lead state vào system prompt; greeting Uyển Nhi layer `greeting-intro`
+- Queue lead khi đủ name + contact + need → `messenger_leads.metadata` (name, email, need, …)
+- Test: `npm run test:lead-flow` + `npm run test:replies` — **33/33 pass**
+
+### DNA / goals (tóm tắt)
+| Page | Persona | Goal |
+|------|---------|------|
+| SABO M&T (5 page) | Uyển Nhi | Qualify lead chuyển đổi số |
+| AI Newbie VN / AI Art | Uyển Nhi | Học AI + qualify DN |
+| SABO HUB | Uyển Nhi | Pilot/demo Company OS |
+| BĐS VT / Arena / Billiards | generic | Vertical tư vấn + thu lead nhẹ |
+
+### Files changed
+- messenger-bot/src/personas/uyen-nhi.js (new)
+- messenger-bot/src/strategies/page-contracts.js (new)
+- messenger-bot/src/leads/extract.js (new)
+- messenger-bot/src/leads/flow.js (new)
+- messenger-bot/src/session/store.js
+- messenger-bot/src/ai/router.js
+- messenger-bot/src/responses/prompts.js
+- messenger-bot/src/responses/greeting.js
+- messenger-bot/src/leads/queue.js
+- messenger-bot/src/ai/intent.js
+- messenger-bot/scripts/test-lead-flow.cjs (new)
+- messenger-bot/package.json
+
+### Verify
+```
+npm run test:lead-flow  → All passed (multi-turn AI Newbie VN)
+npm run test:replies    → 33/33 pass, greeting-intro có Uyển Nhi
+```
+
+### Chưa làm / handoff
+- **Render redeploy** cần để production nhận code mới: `npm run deploy:render` hoặc manual deploy từ dashboard
+- CEO test Messenger: AI Newbie VN + SABO Media — flow chào → tên → SĐT → nhu cầu → check Telegram notify + `messenger_leads` row `lead_status=qualified`
+
 ## [2026-06-18] Messenger Bot v2 — AI inbox 11 pages (không Travis)
 
 ### Đã làm
@@ -152,4 +194,51 @@ curl https://sabo-messenger-bot.onrender.com/health
 # inboxPoller.enabled: true
 # Nhắn page → reply trong ~45s
 ```
+
+## [2026-06-18] Env bootstrap — thêm nguồn 05-TOOLS (Brain SSoT)
+
+### Đã làm
+- `env-bootstrap.js` load thêm `05-TOOLS/.env` và `05-TOOLS/fb-messenger-bot/.env` (Brain `Accounts/Social Media.md` trỏ đây)
+- Rà toàn monorepo: page token có ở admin/.env, .env.secrets, social-credentials.local.json, fb-messenger-bot PAGES_JSON
+- App secret **chỉ** ADMIN `1340824257525630` trong git; Live app `683588114593911` chỉ có ID + FILL_ME trong higgfied-mcp/.env
+
+### Files changed
+- messenger-bot/src/config/env-bootstrap.js
+- messenger-bot/DEVLOG.md
+
+### Chưa làm / handoff
+- ~~Webhooks Live app~~ → **683588114593911** lưu `.env.secrets` + E2E 11/11 OK (2026-06-18)
+
+## [2026-06-18] Migrate webhook → Meta Live app SABO ARENA (683588)
+
+### Đã làm
+- Lưu `META_APP_ID=683588114593911` + secret vào `.env.secrets` (ADMIN giữ `META_APP_ADMIN_*`)
+- `npm run e2e:meta` production: app webhook OK, **11/11 page subscribe**, 11/11 profile setup
+- Push env Render (deploy script)
+
+### Files changed
+- D:\0.PROJECTS\.env.secrets
+- messenger-bot/DEVLOG.md
+
+### Verify
+- Nhắn page bất kỳ từ account thường → reply realtime (webhook Live)
+- Có thể `INBOX_POLLER_ENABLED=false` trên Render sau khi confirm
+
+## [2026-06-18] Full auto — Render env + Live webhook production
+
+### Đã làm
+- `deploy-render.cjs`: `RENDER_SERVICE_ID`, auto-load `RENDER_API_KEY` từ `.env.secrets`, push `INBOX_POLLER_ENABLED`
+- `npm run deploy:render` → deploy `dep-d8ptm3h194ac739mo4n0` **live**
+- Render env: `META_APP_ID=683588114593911`, `INBOX_POLLER_ENABLED=false`, 24 vars total
+- Production verify: `/health` OK, `inboxPoller.enabled=false`, webhook challenge `auto_ok`
+- `npm run e2e:meta` lần 2: **11/11 subscribe**, **11/11 profile**
+
+### Files changed
+- messenger-bot/scripts/deploy-render.cjs
+- messenger-bot/package.json (`deploy:render`)
+- D:\0.PROJECTS\.env.secrets (RENDER_API_KEY, RENDER_SERVICE_ID, META Live)
+- messenger-bot/DEVLOG.md
+
+### Test
+- Nhắn bất kỳ page SABO trên Messenger → reply vài giây (webhook Live app)
 

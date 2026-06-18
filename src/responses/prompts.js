@@ -1,7 +1,11 @@
 /**
  * System prompts per project — distilled from MARKETING_AGENT.md / chat-context.
+ * Persona Uyển Nhi: hermes/shared/souls/uyen_nhi.md
  * Không gọi Travis; lightweight LLM only.
  */
+
+const { getUyenNhiBlock } = require("../personas/uyen-nhi");
+const { getPageContract } = require("../strategies/page-contracts");
 
 const HOTLINE = "0798893333";
 
@@ -76,9 +80,20 @@ Mọi tin nhắn: kết thúc "Đội ngũ SABO Billiards sẽ liên hệ sớm 
 ${SHARED_RULES}`,
 };
 
-function getSystemPrompt(page) {
+function getSystemPrompt(page, leadBlock = "") {
   const key = page.projectSlug || "sabo-mt";
-  return PROMPTS[key] || PROMPTS["sabo-mt"];
+  const contract = getPageContract(page);
+  let prompt = PROMPTS[key] || PROMPTS["sabo-mt"];
+
+  if (contract.persona === "uyen_nhi") {
+    prompt = `${getUyenNhiBlock()}\n\n${prompt}`;
+  }
+
+  if (leadBlock) {
+    prompt = `${prompt}\n\n${leadBlock}`;
+  }
+
+  return prompt;
 }
 
 module.exports = { PROMPTS, getSystemPrompt, HOTLINE, SHARED_RULES };

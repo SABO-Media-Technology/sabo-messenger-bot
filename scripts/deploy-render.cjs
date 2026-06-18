@@ -2,25 +2,30 @@
  * Deploy sabo-messenger-bot to Render (create service + env + deploy).
  * Usage: RENDER_API_KEY=rnd_... node scripts/deploy-render.cjs
  */
+const fs = require("fs");
 const path = require("path");
 
 process.chdir(path.join(__dirname, ".."));
+
+const MONOREPO_ROOT = process.env.MONOREPO_ROOT || "D:\\0.PROJECTS";
 
 const { bootstrapEnv } = require("../src/config/env-bootstrap");
 const { loadPageRegistry, PAGE_DEFINITIONS } = require("../src/pages");
 
 const API_KEY = process.env.RENDER_API_KEY;
 const OWNER_ID = process.env.RENDER_OWNER_ID || "tea-d8psrsu7r5hc7397m20g";
+const SERVICE_ID = process.env.RENDER_SERVICE_ID || "srv-d8psv69194ac739luu00";
 const REPO = process.env.RENDER_REPO || "https://github.com/longsangsabo2025/sabo-messenger-bot";
 const BRANCH = process.env.RENDER_BRANCH || "main";
 const SERVICE_NAME = "sabo-messenger-bot";
 const ROOT_DIR = process.env.RENDER_ROOT_DIR || "";
 
 async function api(method, urlPath, body) {
+  const key = process.env.RENDER_API_KEY;
   const res = await fetch(`https://api.render.com/v1${urlPath}`, {
     method,
     headers: {
-      Authorization: `Bearer ${API_KEY}`,
+      Authorization: `Bearer ${key}`,
       Accept: "application/json",
       "Content-Type": "application/json",
     },
@@ -62,6 +67,7 @@ function buildEnvVars() {
     { key: "TELEGRAM_BOT_TOKEN", value: process.env.TELEGRAM_BOT_TOKEN },
     { key: "TELEGRAM_ADMIN_CHAT_ID", value: process.env.TELEGRAM_ADMIN_CHAT_ID },
     { key: "META_USER_ACCESS_TOKEN", value: process.env.META_USER_ACCESS_TOKEN },
+    { key: "INBOX_POLLER_ENABLED", value: process.env.INBOX_POLLER_ENABLED ?? "false" },
     { key: "BRAIN_RAG_ENABLED", value: process.env.BRAIN_RAG_ENABLED || "false" },
   ];
 
@@ -125,6 +131,14 @@ async function waitDeploy(serviceId, deployId) {
 
 async function main() {
   if (!API_KEY) {
+    const secretsPath = path.join(MONOREPO_ROOT, ".env.secrets");
+    if (fs.existsSync(secretsPath)) {
+      const m = fs.readFileSync(secretsPath, "utf8").match(/^RENDER_API_KEY=(\S+)/m);
+      if (m) process.env.RENDER_API_KEY = m[1].trim();
+    }
+  }
+  const apiKey = process.env.RENDER_API_KEY;
+  if (!apiKey) {
     console.error("Set RENDER_API_KEY");
     process.exit(1);
   }
@@ -135,7 +149,17 @@ async function main() {
   const envVars = buildEnvVars();
   console.log(`Env vars to push: ${envVars.length} (secrets redacted in log)`);
 
-  let service = await findService();
+  let service = null;
+  if (SERVICE_ID) {
+    try {
+      const detail = await api("GET", `/services/${SERVICE_ID}`);
+      service = detail.service || detail;
+      console.log("Service by ID:", service.id, service.name);
+    } catch {
+      console.warn("RENDER_SERVICE_ID not found, falling back to name lookup");
+    }
+  }
+  if (!service) service = await findService();
   if (!service) {
     console.log("Creating Render service...");
     const created = await createService();

@@ -1,6 +1,7 @@
 const axios = require("axios");
 const { logger } = require("../utils/logger");
-const { detectHotLead, extractPhone } = require("../ai/intent");
+const { detectHotLead } = require("../ai/intent");
+const { extractPhone } = require("./extract");
 const { HOTLINE } = require("../responses/prompts");
 
 /**
@@ -49,13 +50,20 @@ async function notifyTelegram(text) {
 /**
  * Queue lead event (fire-and-forget).
  */
-async function queueLeadEvent({ page, senderId, userText, replyLayer }) {
-  const phone = extractPhone(userText);
-  const hot = detectHotLead(userText);
+async function queueLeadEvent({ page, senderId, userText, replyLayer, profile = null }) {
+  const phone = profile?.phone || extractPhone(userText);
+  const hot = detectHotLead(userText) || Boolean(profile?.need && phone);
   const source = `messenger:${page.slug}`;
+  const complete = Boolean(profile?.name && (profile?.phone || profile?.email) && profile?.need);
 
   if (process.env.LEAD_QUEUE_DRY_RUN === "1") {
-    logger.info("lead_dry_run", { source, psid: senderId, hot });
+    logger.info("lead_dry_run", {
+      source,
+      psid: senderId,
+      hot,
+      complete,
+      name: profile?.name || null,
+    });
     return { stored: false, dryRun: true };
   }
 
@@ -69,10 +77,17 @@ async function queueLeadEvent({ page, senderId, userText, replyLayer }) {
     source,
     tier: page.tier,
     reply_layer: replyLayer,
-    lead_status: "new_lead",
-    lead_score: hot ? 75 : 40,
+    lead_status: complete ? "qualified" : "new_lead",
+    lead_score: complete ? (hot ? 85 : 65) : hot ? 75 : 40,
     metadata: {
       reply_layer: replyLayer,
+      name: profile?.name || null,
+      email: profile?.email || null,
+      business_type: profile?.business_type || null,
+      need: profile?.need || null,
+      timeline: profile?.timeline || null,
+      budget: profile?.budget || null,
+      lead_complete: complete,
     },
   };
 
@@ -93,11 +108,17 @@ async function queueLeadEvent({ page, senderId, userText, replyLayer }) {
     logger.info("lead_queued", { leadId, source, hot });
 
     const icon = hot ? "🔥" : "📩";
+    const nameLine = profile?.name ? `Tên: ${profile.name}\n` : "";
+    const emailLine = profile?.email ? `📧 ${profile.email}\n` : "";
+    const needLine = profile?.need ? `Nhu cầu: ${profile.need.slice(0, 120)}\n` : "";
     await notifyTelegram(
-      `${icon} Messenger lead — ${page.name}\n` +
+      `${icon} Messenger lead${complete ? " ✅ đủ field" : ""} — ${page.name}\n` +
         `Project: ${page.projectSlug} · Tier: ${page.tier}\n` +
+        nameLine +
         `PSID: ${senderId}\n` +
         (phone ? `📞 ${phone}\n` : "") +
+        emailLine +
+        needLine +
         `\n${userText.slice(0, 200)}\n\n` +
         `→ sales_concierge / hotline ${HOTLINE}`,
     );

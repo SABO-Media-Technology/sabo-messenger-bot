@@ -36,9 +36,6 @@ function detectHotLead(message) {
   return detectLeadIntent(message) && HOT_LEAD_SIGNALS.some((s) => lower.includes(s));
 }
 
-function extractPhone(text) {
-  const m = (text || "").match(/(?:\+?84|0)\d{8,10}/);
-  return m ? m[0] : null;
-}
+const { extractPhone } = require("../leads/extract");
 
 module.exports = { detectLeadIntent, detectHotLead, extractPhone, LEAD_SIGNALS };

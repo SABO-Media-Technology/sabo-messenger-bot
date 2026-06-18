@@ -14,6 +14,8 @@ const GRAPH_VERSION = "v21.0";
 
 const ENV_SOURCES = [
   path.join(MONOREPO_ROOT, "messenger-bot", ".env"),
+  path.join(MONOREPO_ROOT, "05-TOOLS", ".env"),
+  path.join(MONOREPO_ROOT, "05-TOOLS", "fb-messenger-bot", ".env"),
   path.join(MONOREPO_ROOT, "00-MASTER-ADMIN", "admin", ".env"),
   path.join(MONOREPO_ROOT, "02-SABO-ECOSYSTEM", "sabo-mt-website", ".env.local"),
   path.join(MONOREPO_ROOT, "02-SABO-ECOSYSTEM", "sabo-mt-website", ".env"),

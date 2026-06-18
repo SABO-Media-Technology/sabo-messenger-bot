@@ -1,6 +1,6 @@
 /**
  * Greeting text, auto-reply, and Persistent Menu config per page.
- * Edit this file to change reply content without touching handler code.
+ * Chat greeting (Uyển Nhi) via page-contracts in router — getGreetingForPage().
  */
 
 const DEFAULT_REPLY =
@@ -12,7 +12,8 @@ const DEFAULT_GREETING =
 /** Per-page overrides — only set fields you want to differ from default */
 const PAGE_OVERRIDES = {
   "840807759121010": {
-    greeting: "Xin chào {{user_first_name}}! Chào mừng đến SABO Design — thiết kế logo & poster chuyên nghiệp.",
+    greeting:
+      "Chào {{user_first_name}}! Em là Uyển Nhi — SABO Design. Cho em xin tên đầy đủ để xưng hô nhé?",
   },
   "827460493786896": {
     greeting: "Xin chào {{user_first_name}}! SABO Web — thiết kế website giá tốt, chuẩn SEO.",
@@ -36,10 +37,12 @@ const PAGE_OVERRIDES = {
     greeting: "Xin chào {{user_first_name}}! App Quản lý Giải Đấu Billiards.",
   },
   "569671719553461": {
-    greeting: "Xin chào {{user_first_name}}! Chào mừng đến AI Newbie VN.",
+    greeting:
+      "Chào {{user_first_name}}! Em là Uyển Nhi từ AI Newbie VN. Cho em xin tên để xưng hô nhé?",
   },
   "332950393234346": {
-    greeting: "Xin chào {{user_first_name}}! SABO Media & Technology — Build. Automate. Create.",
+    greeting:
+      "Chào {{user_first_name}}! Em là Uyển Nhi — SABO Media & Technology. Cho em xin tên để xưng hô nhé?",
   },
   "118356497898536": {
     greeting: "Xin chào {{user_first_name}}! SABO Billiards Vũng Tàu — hệ sinh thái billiards.",
