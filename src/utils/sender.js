@@ -45,25 +45,25 @@ async function setGetStarted(pageId, accessToken) {
 }
 
 /**
- * Set greeting text for a page.
+ * Ice breakers replace deprecated greeting on Graph API v21+.
  */
-async function setGreeting(pageId, accessToken) {
-  const url = `${GRAPH_BASE}/me/messenger_profile`;
-  const greetingText = getGreetingText(pageId);
-  const body = {
-    greeting: [
-      {
-        locale: "default",
-        text: greetingText,
-      },
-    ],
-  };
-
-  const { data } = await axios.post(url, body, {
-    params: { access_token: accessToken },
-  });
-  logger.info("greeting_set", { pageId });
-  return data;
+function buildIceBreakers(pageId) {
+  const greetingText = getGreetingText(pageId).replace(/\{\{user_first_name\}\}/g, "bạn");
+  return [
+    {
+      locale: "default",
+      call_to_actions: [
+        {
+          question: greetingText.slice(0, 80),
+          payload: "GET_STARTED",
+        },
+        {
+          question: "💬 Tư vấn dịch vụ",
+          payload: "REQUEST_CONSULT",
+        },
+      ],
+    },
+  ];
 }
 
 /**
@@ -98,9 +98,16 @@ async function setupPageProfile(page) {
   }
 
   try {
-    await setGetStarted(pageId, accessToken);
-    await setGreeting(pageId, accessToken);
-    await setPersistentMenu(pageId, accessToken);
+    const url = `${GRAPH_BASE}/me/messenger_profile`;
+    const body = {
+      get_started: { payload: getGetStartedPayload() },
+      persistent_menu: [getPersistentMenu()],
+      ice_breakers: buildIceBreakers(pageId),
+    };
+    await axios.post(url, body, {
+      params: { access_token: accessToken },
+    });
+    logger.info("messenger_profile_set", { pageId, name });
     return { pageId, name, success: true };
   } catch (err) {
     const fbError = err.response?.data?.error;
@@ -132,7 +139,6 @@ async function setupAllPages(pages) {
 module.exports = {
   sendText,
   setGetStarted,
-  setGreeting,
   setPersistentMenu,
   setupPageProfile,
   setupAllPages,

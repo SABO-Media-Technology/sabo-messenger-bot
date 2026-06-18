@@ -140,6 +140,9 @@ function bootstrapFromFiles() {
 
   applyIfUnset("VERIFY_TOKEN", merged.MESSENGER_VERIFY_TOKEN || "longsang_messenger_bot_2026");
 
+  applyIfUnset("META_APP_ID", merged.META_APP_ID || merged.VITE_FACEBOOK_APP_ID || merged.FACEBOOK_APP_ID);
+  applyIfUnset("META_APP_SECRET", merged.META_APP_SECRET || merged.FACEBOOK_APP_SECRET);
+
   const dbUrl = cleanEnvValue(merged.DATABASE_URL);
   if (dbUrl.includes(SHARED_SUPABASE_REF)) {
     process.env.DATABASE_URL = dbUrl;

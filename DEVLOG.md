@@ -79,7 +79,19 @@ curl :3105/health     → tokensConfigured: 11, llm: groq
 ```
 
 ### Chưa làm / handoff
-- Deploy Render + webhook Facebook subscribe (cần URL public)
-- `GET /setup` trên production một lần
+- ~~Deploy Render~~ ✅ xem entry dưới
 - Chốt page ID lệch (HUB, BĐS VT)
+
+## [2026-06-18] Deploy Render production
+
+### Đã làm
+- Repo public: https://github.com/longsangsabo2025/sabo-messenger-bot
+- Render `srv-d8psv69194ac739luu00` → **https://sabo-messenger-bot.onrender.com**
+- 21 env vars (Groq, 11 page tokens, Supabase, Telegram, META)
+- Deploy live; `/health` 200; webhook verify `challenge: render_ok`
+
+### Handoff
+- Meta Developer: Callback URL `https://sabo-messenger-bot.onrender.com/webhook`, verify `longsang_messenger_bot_2026`
+- Một lần: `GET https://sabo-messenger-bot.onrender.com/setup`
+- RAG production: set `BRAIN_RAG_ENABLED=true` + `BRAIN_RAG_URL` (VPS public) nếu cần
 

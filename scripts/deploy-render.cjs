@@ -11,10 +11,10 @@ const { loadPageRegistry, PAGE_DEFINITIONS } = require("../src/pages");
 
 const API_KEY = process.env.RENDER_API_KEY;
 const OWNER_ID = process.env.RENDER_OWNER_ID || "tea-d8psrsu7r5hc7397m20g";
-const REPO = process.env.RENDER_REPO || "https://github.com/longsangsabo2025/eva";
+const REPO = process.env.RENDER_REPO || "https://github.com/longsangsabo2025/sabo-messenger-bot";
 const BRANCH = process.env.RENDER_BRANCH || "main";
 const SERVICE_NAME = "sabo-messenger-bot";
-const ROOT_DIR = "messenger-bot";
+const ROOT_DIR = process.env.RENDER_ROOT_DIR || "";
 
 async function api(method, urlPath, body) {
   const res = await fetch(`https://api.render.com/v1${urlPath}`, {
@@ -53,6 +53,8 @@ function buildEnvVars() {
   const vars = [
     { key: "NODE_ENV", value: "production" },
     { key: "VERIFY_TOKEN", value: process.env.VERIFY_TOKEN },
+    { key: "META_APP_ID", value: process.env.META_APP_ID || process.env.VITE_FACEBOOK_APP_ID },
+    { key: "META_APP_SECRET", value: process.env.META_APP_SECRET || process.env.FACEBOOK_APP_SECRET },
     { key: "GROQ_API_KEY", value: process.env.GROQ_API_KEY },
     { key: "GROQ_MODEL", value: process.env.GROQ_MODEL || "llama-3.3-70b-versatile" },
     { key: "SUPABASE_URL", value: process.env.SUPABASE_URL },
@@ -76,35 +78,35 @@ function buildEnvVars() {
 }
 
 async function createService() {
-  return api("POST", "/services", {
+  const body = {
     type: "web_service",
     name: SERVICE_NAME,
     ownerId: OWNER_ID,
     repo: REPO,
     branch: BRANCH,
     autoDeploy: "yes",
-    rootDir: ROOT_DIR,
     serviceDetails: {
       env: "node",
       plan: "free",
       region: "singapore",
-      buildCommand: "npm install",
-      startCommand: "npm start",
       healthCheckPath: "/health",
+      envSpecificDetails: {
+        buildCommand: "npm install",
+        startCommand: "npm start",
+      },
     },
-  });
+  };
+  if (ROOT_DIR) body.rootDir = ROOT_DIR;
+  return api("POST", "/services", body);
 }
 
 async function setEnvVars(serviceId, envVars) {
-  return api("PUT", `/services/${serviceId}/env-vars`, {
-    envVars: envVars.map(({ key, value }) => ({ key, value })),
-  });
+  return api("PUT", `/services/${serviceId}/env-vars`, envVars);
 }
 
 async function triggerDeploy(serviceId) {
-  return api("POST", `/services/${serviceId}/deploys`, {
-    clearCache: "do_not_clear",
-  });
+  const data = await api("POST", `/services/${serviceId}/deploys`, {});
+  return data?.deploy || data;
 }
 
 async function waitDeploy(serviceId, deployId) {
@@ -148,10 +150,13 @@ async function main() {
 
   console.log("Triggering deploy...");
   const deploy = await triggerDeploy(service.id);
-  const deployId = deploy.deploy?.id || deploy.id;
-  console.log("Deploy id:", deployId);
-
-  await waitDeploy(service.id, deployId);
+  const deployId = deploy?.id;
+  if (!deployId) {
+    console.log("Deploy triggered (no id in response — check Render dashboard)");
+  } else {
+    console.log("Deploy id:", deployId);
+    await waitDeploy(service.id, deployId);
+  }
 
   const detail = await api("GET", `/services/${service.id}`);
   const s = detail.service || detail;
