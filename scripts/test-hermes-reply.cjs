@@ -13,7 +13,7 @@ process.env.OLLAMA_ENABLED = "true";
 const { bootstrapEnv } = require("../src/config/env-bootstrap");
 const { loadPageRegistry, getPage } = require("../src/pages");
 const { generateReply } = require("../src/ai/router");
-const { probeHermesHealth } = require("../src/ai/hermes-client");
+const { probeHermesHealth, sessionKey } = require("../src/ai/hermes-client");
 const { clearThread, setLeadProfile, setSessionMeta } = require("../src/session/store");
 
 async function main() {
@@ -38,6 +38,13 @@ async function main() {
   );
   setSessionMeta(page.id, senderId, { honorific: "anh/chị", fbProfileFetched: true });
 
+  const sk = sessionKey(page, senderId);
+  if (!/^uyen-nhi:messenger:/.test(sk)) {
+    console.error("FAIL: session key should be uyen-nhi omnichannel format, got", sk);
+    process.exit(1);
+  }
+  console.log("sessionKey:", sk);
+
   const { text, layer } = await generateReply(page, senderId, "giá website bao nhiêu?");
   console.log("layer:", layer);
   console.log("reply:", text.slice(0, 500));
@@ -45,7 +52,10 @@ async function main() {
     console.error("FAIL: expected hermes in layer");
     process.exit(1);
   }
-  console.log("\nOK: Hermes reply path");
+  if (!/\bem\b/i.test(text)) {
+    console.warn("WARN: reply may lack em/anh/chị voice — check soul + Hermes");
+  }
+  console.log("\nOK: Hermes reply path (Uyển Nhi omnichannel)");
 }
 
 main().catch((e) => {

@@ -1,0 +1,57 @@
+/**
+ * Uyển Nhi soul SSoT — đọc từ Hermes shared souls (omnichannel).
+ * Messenger/Telegram/... chỉ thêm channel context; không duplicate persona prose.
+ */
+const fs = require("fs");
+const path = require("path");
+
+const DEFAULT_SOUL_PATH = path.join(
+  process.env.MONOREPO_ROOT || "D:\\0.PROJECTS",
+  "10-AI-BRAIN",
+  "hermes",
+  "shared",
+  "souls",
+  "uyen_nhi.md",
+);
+
+const MESSENGER_SALES_RULES = `
+## Kênh hiện tại: Facebook Messenger (SABO pages)
+- Bạn là Uyển Nhi — sales/tư vấn SABO M&T, KHÔNG phải chatbot generic.
+- Tự xưng "em", gọi khách "anh/chị" (hoặc "anh/chị [Tên]" nếu có tên Facebook).
+- Ngắn 80–120 từ. Không markdown heading. Không nói "tôi là AI".
+- Flow: chào → làm rõ nhu cầu → tư vấn cụ thể → thu SĐT/Zalo khi sẵn sàng báo giá.
+- Sau qualify: tư vấn giá/scope thật — không hỏi lại tên/SĐT, không dump hotline.
+- CẤM: "em cần biết tên", "không thể thấy tên user", đẩy hotline khi chưa được hỏi.
+`.trim();
+
+let cachedSoul = null;
+
+function loadSoulFile() {
+  const soulPath = process.env.HERMES_SOUL_PATH || DEFAULT_SOUL_PATH;
+  if (!fs.existsSync(soulPath)) {
+    return null;
+  }
+  return fs.readFileSync(soulPath, "utf8").trim();
+}
+
+function getUyenNhiSoulBlock() {
+  if (!cachedSoul) {
+    cachedSoul = loadSoulFile();
+  }
+  if (cachedSoul) {
+    return cachedSoul;
+  }
+  // Fallback nếu file soul chưa sync
+  const { getUyenNhiBlock } = require("./uyen-nhi");
+  return getUyenNhiBlock();
+}
+
+function getMessengerChannelRules() {
+  return MESSENGER_SALES_RULES;
+}
+
+module.exports = {
+  getUyenNhiSoulBlock,
+  getMessengerChannelRules,
+  DEFAULT_SOUL_PATH,
+};

@@ -2,7 +2,7 @@ const { matchTemplate } = require("./templates");
 const { chatCompletion, isLlmConfigured } = require("./llm");
 const { isHermesEnabled, chatHermes } = require("./hermes-client");
 const { fetchRagContext } = require("./rag");
-const { getSystemPrompt } = require("../responses/prompts");
+const { getSystemPrompt, getHermesChannelPrompt } = require("../responses/prompts");
 const { getReplyText } = require("../responses/greeting");
 const { detectLeadIntent } = require("./intent");
 const {
@@ -187,20 +187,21 @@ async function generateReply(page, senderId, userText) {
   }
 
   const history = getHistory(page.id, senderId);
-  const basePrompt = getSystemPrompt(page, leadBlock);
+  let llmSystemPrompt = getSystemPrompt(page, leadBlock);
+  let hermesSystemPrompt = getHermesChannelPrompt(page, leadBlock);
   let layer = page.replyStrategy;
 
   try {
-    let systemPrompt = basePrompt;
-
     if (page.replyStrategy === "rag-mini" || page.replyStrategy === "human-handoff") {
       const ragContext = await fetchRagContext(text, page);
-      systemPrompt = buildPromptWithRag(basePrompt, ragContext);
+      llmSystemPrompt = buildPromptWithRag(llmSystemPrompt, ragContext);
+      hermesSystemPrompt = buildPromptWithRag(hermesSystemPrompt, ragContext);
       layer = ragContext ? "rag-mini" : "mini";
     } else if (page.replyStrategy === "sabo-mt") {
       const ragContext = await fetchRagContext(text, page);
       if (ragContext) {
-        systemPrompt = buildPromptWithRag(basePrompt, ragContext);
+        llmSystemPrompt = buildPromptWithRag(llmSystemPrompt, ragContext);
+        hermesSystemPrompt = buildPromptWithRag(hermesSystemPrompt, ragContext);
         layer = "sabo-mt+rag";
       } else {
         layer = "sabo-mt";
@@ -215,7 +216,7 @@ async function generateReply(page, senderId, userText) {
         reply = await chatHermes({
           page,
           senderId,
-          systemPrompt,
+          systemPrompt: hermesSystemPrompt,
           history,
           userText: text,
           temperature: postQualify ? 0.65 : 0.5,
@@ -229,7 +230,7 @@ async function generateReply(page, senderId, userText) {
 
     if (!reply) {
       reply = await chatCompletion(
-        systemPrompt,
+        llmSystemPrompt,
         [...history, { role: "user", content: text }],
         { temperature: postQualify ? 0.65 : 0.5 },
       );

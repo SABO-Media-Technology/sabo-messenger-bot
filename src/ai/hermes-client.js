@@ -30,8 +30,19 @@ function getHermesConfig() {
 }
 
 function sessionKey(page, senderId) {
-  const slug = page.projectSlug || page.id;
-  return `messenger:${slug}:${page.id}:${senderId}`;
+  const vertical = page.projectSlug || "sabo-mt";
+  return `uyen-nhi:messenger:${vertical}:${page.id}:${senderId}`;
+}
+
+function channelMetadata(page) {
+  return {
+    agent: "uyen-nhi",
+    channel: "facebook_messenger",
+    pageId: page.id,
+    pageName: page.name || "",
+    vertical: page.projectSlug || "sabo-mt",
+    replyStrategy: page.replyStrategy || "",
+  };
 }
 
 async function probeHermesHealth() {
@@ -65,6 +76,9 @@ async function chatHermes({ page, senderId, systemPrompt, history, userText, tem
   const headers = {
     "Content-Type": "application/json",
     "X-Hermes-Session-Key": sessionKey(page, senderId),
+    "X-Hermes-Channel": "facebook_messenger",
+    "X-Hermes-Agent": "uyen-nhi",
+    "X-Hermes-Page-Id": String(page.id || ""),
   };
   if (cfg.apiKey) {
     headers.Authorization = `Bearer ${cfg.apiKey}`;
@@ -90,6 +104,7 @@ async function chatHermes({ page, senderId, systemPrompt, history, userText, tem
   logger.info("hermes_ok", {
     model: cfg.model,
     sessionKey: sessionKey(page, senderId),
+    channel: channelMetadata(page),
     chars: text.length,
   });
   return text;
@@ -101,4 +116,5 @@ module.exports = {
   probeHermesHealth,
   chatHermes,
   sessionKey,
+  channelMetadata,
 };

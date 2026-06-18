@@ -33,11 +33,25 @@
 | Layer | Path |
 |-------|------|
 | Soul gốc (Hermes) | `10-AI-BRAIN/hermes/shared/souls/uyen_nhi.md` |
-| Distilled runtime | `src/personas/uyen-nhi.js` |
+| Soul loader (omnichannel) | `src/personas/uyen-nhi-soul.js` |
+| Hermes profile template | `hermes-profiles/uyen-nhi/` + `scripts/setup-uyen-nhi-hermes-profile.ps1` |
+| Distilled runtime (LLM fallback) | `src/personas/uyen-nhi.js` |
 | Page contracts | `src/strategies/page-contracts.js` |
 | System prompts | `src/responses/prompts.js` |
 
 Quy tắc voice: tự xưng **em**, gọi khách **anh/chị**; tiếng Việt tự nhiên; hỏi **một** field mỗi lượt; không nói "tôi là AI/chatbot".
+
+### Uyển Nhi omnichannel (Messenger = adapter đầu tiên)
+
+Messenger-bot **không** train persona riêng — chỉ gửi **channel context** + lead block; giọng Uyển Nhi từ soul SSoT.
+
+| Thành phần | Chi tiết |
+|------------|----------|
+| Session key | `uyen-nhi:messenger:{vertical}:{pageId}:{psid}` — Telegram/Zalo dùng prefix `uyen-nhi:telegram:` / `uyen-nhi:zalo:` sau này |
+| Hermes prompt | `getHermesChannelPrompt()` — soul file + messenger rules + vertical; **không** duplicate `getUyenNhiBlock()` |
+| LLM fallback | `getSystemPrompt()` — giữ distilled block khi Hermes down |
+| Profile Hermes | `pwsh scripts/setup-uyen-nhi-hermes-profile.ps1` → `~/.hermes/profiles/uyen-nhi/` (API khuyến nghị `:8643`) |
+| Env | `HERMES_SOUL_PATH` (optional), `HERMES_ENABLED`, `HERMES_API_URL` |
 
 ---
 

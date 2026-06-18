@@ -1,3 +1,24 @@
+## [2026-06-18] Uyển Nhi omnichannel (Messenger adapter)
+
+### Đã làm
+- `src/personas/uyen-nhi-soul.js` — đọc soul SSoT từ `hermes/shared/souls/uyen_nhi.md` + messenger sales rules
+- `getHermesChannelPrompt()` — slim prompt khi Hermes on (không duplicate `getUyenNhiBlock()`)
+- Session key: `uyen-nhi:messenger:{vertical}:{pageId}:{psid}` + headers `X-Hermes-Agent` / `X-Hermes-Channel`
+- `hermes-profiles/uyen-nhi/` + `scripts/setup-uyen-nhi-hermes-profile.ps1` (profile `:8643`)
+- `docs/MESSENGER_BOT_REFERENCE.md` § omnichannel; `.env.example` `HERMES_SOUL_PATH`
+
+### Files changed
+- src/personas/uyen-nhi-soul.js, src/responses/prompts.js, src/ai/router.js, src/ai/hermes-client.js
+- hermes-profiles/uyen-nhi/SOUL.overlay.md, scripts/setup-uyen-nhi-hermes-profile.ps1
+- scripts/test-hermes-reply.cjs, docs/MESSENGER_BOT_REFERENCE.md, .env.example
+
+### Chưa làm / handoff
+- Chạy `setup-uyen-nhi-hermes-profile.ps1` + PM2 `hermes-uyen-nhi` :8643 (hoặc sync SOUL vào lab nếu tạm dùng :8642)
+- Cloudflare tunnel + `deploy:render` + CEO retest live inbox
+- Git push (auth)
+
+---
+
 - **2026-06-18 ship verify:** Hermes API + Ollama wired; `npm run test:hermes` OK (ballpark giá thật).
 
 ## [2026-06-18] Hermes integration + prod path (CEO: bot hoàn hảo)

@@ -12,7 +12,8 @@
 
 const { getUyenNhiBlock } = require("../personas/uyen-nhi");
 
-const { getPageContract, buildVerticalPromptBlock } = require("../strategies/page-contracts");
+const { getPageContract, buildVerticalPromptBlock, getVerticalId } = require("../strategies/page-contracts");
+const { getUyenNhiSoulBlock, getMessengerChannelRules } = require("../personas/uyen-nhi-soul");
 
 
 
@@ -128,8 +129,42 @@ ${SHARED_RULES}`;
 
 }
 
+/**
+ * Slim prompt khi Hermes + Uyển Nhi soul là SSoT — chỉ channel + vertical + lead.
+ */
+function getHermesChannelPrompt(page, leadBlock = "") {
+  const key = page.projectSlug || "sabo-mt";
+  const contract = getPageContract(page);
+  const verticalBlock = buildVerticalPromptBlock(page);
+  const projectCtx = PROJECT_CONTEXT[key] || PROJECT_CONTEXT["sabo-mt"];
+  const verticalId = getVerticalId(page);
+
+  let prompt = `${getUyenNhiSoulBlock()}
+
+${getMessengerChannelRules()}
+
+KÊNH: facebook_messenger
+TRANG: ${page.name || page.id} (${key})
+VERTICAL: ${verticalId}
+MỤC TIÊU: ${contract.goal}
+
+${verticalBlock}
+
+NGỮ CẢNH TRANG: ${projectCtx}`;
+
+  if (contract.persona === "venue") {
+    prompt = `KÊNH: facebook_messenger — nhân viên quán/giải bida (không corporate B2B).\n\n${prompt}`;
+  }
+
+  if (leadBlock) {
+    prompt = `${prompt}\n\n${leadBlock}`;
+  }
+
+  return prompt;
+}
 
 
-module.exports = { getSystemPrompt, HOTLINE, SHARED_RULES, FORBIDDEN_PHRASES, PROJECT_CONTEXT };
+
+module.exports = { getSystemPrompt, getHermesChannelPrompt, HOTLINE, SHARED_RULES, FORBIDDEN_PHRASES, PROJECT_CONTEXT };
 
 
