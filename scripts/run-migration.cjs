@@ -32,7 +32,11 @@ async function main() {
     process.exit(1);
   }
 
-  const sqlFiles = ["002_messenger_leads.sql", "003_messenger_threads_lead_meta.sql"];
+  const sqlFiles = [
+    "001_messenger_threads.sql",
+    "002_messenger_leads.sql",
+    "003_messenger_threads_lead_meta.sql",
+  ];
   const client = new Client({
     connectionString: databaseUrl.replace(/\r?\n/g, "").trim(),
     ssl: { rejectUnauthorized: false },

@@ -5,7 +5,7 @@
 - `postQualifyFallback()` + `isPostQualify` routing trong `router.js`
 - `extract.js` — không parse câu need/consult thành `name`
 - `prompts.js` — rule "lead đủ → tư vấn, không hỏi lại contact"
-- `run-migration.cjs` — thêm `003_messenger_threads_lead_meta.sql` (cột `lead`/`meta`)
+- `run-migration.cjs` — chain `001` + `002` + `003` (đã chạy OK trên shared Supabase)
 
 ### Files changed
 - src/ai/router.js, src/leads/extract.js, src/responses/prompts.js, src/session/persist.js
@@ -19,7 +19,7 @@ npm run test:replies     # 37 pass, 0 fail
 ```
 
 ### Chưa làm / handoff (CEO)
-- **Bắt buộc 1 lần:** `cd messenger-bot && npm run db:migrate` — apply `003` nếu session persist chưa có cột `lead`/`meta`
+- ~~`npm run db:migrate`~~ ✅ đã apply 001+002+003 (2026-06-18 agent session)
 - Retest live inbox SABO Media: flow website → tên → SĐT → hỏi tư vấn
 
 ## [2026-06-18] Session memory + post-qualify consult (CEO SABO Media bug)
