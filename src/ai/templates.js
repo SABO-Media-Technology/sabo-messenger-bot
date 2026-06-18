@@ -1,6 +1,7 @@
 const { HOTLINE } = require("../responses/prompts");
 
-const { getVerticalId } = require("../strategies/page-contracts");
+const { getVerticalId, getPageContract } = require("../strategies/page-contracts");
+const { isPostQualify } = require("../leads/flow");
 
 
 
@@ -237,37 +238,32 @@ const DEFAULT_TEMPLATES = VERTICAL_TEMPLATES["sabo-mt-services"];
 
 
 /**
-
  * Layer 0 — instant template match (no LLM), vertical-aware.
-
+ * Skips intake templates when lead already qualified (post-consultation mode).
  */
-
-function matchTemplate(userText, page) {
-
+function matchTemplate(userText, page, ctx = {}) {
   const text = (userText || "").trim();
-
   if (!text) return null;
 
-
+  const profile = ctx.profile || {};
+  const sessionMeta = ctx.sessionMeta || {};
+  const contract = getPageContract(page);
+  const postQualify = ctx.postQualify ?? isPostQualify(profile, contract, sessionMeta);
 
   const verticalId = getVerticalId(page);
-
   const rules = VERTICAL_TEMPLATES[verticalId] || DEFAULT_TEMPLATES;
 
-
-
   for (const rule of rules) {
+    if (!rule.patterns.some((re) => re.test(text))) continue;
 
-    if (rule.patterns.some((re) => re.test(text))) {
-
-      return rule.reply(page);
-
+    // After qualify: only hotline/thanks templates — let LLM handle consultation
+    if (postQualify && rule !== HOTLINE_RULE && rule !== THANKS_RULE) {
+      continue;
     }
 
+    return rule.reply(page);
   }
-
   return null;
-
 }
 
 

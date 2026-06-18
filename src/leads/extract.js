@@ -35,9 +35,18 @@ function extractEmail(text) {
   return m ? m[0].toLowerCase() : null;
 }
 
+function looksLikeConsultationQuestion(text) {
+  const t = (text || "").trim();
+  if (!t) return false;
+  return /tư vấn|tư vấn sơ|giải thích|cho biết|không.*(tư vấn|nói|giải thích)|sao không|tại sao|là gì|như thế nào/i.test(
+    t,
+  );
+}
+
 function extractName(text) {
   const t = (text || "").trim();
   if (!t || t.length > 60) return null;
+  if (looksLikeConsultationQuestion(t)) return null;
   if (/^(xin chào|chào|hello|hi|alo)\b/i.test(t)) return null;
   if (/\?/.test(t) && t.length > 12) return null;
 
@@ -101,8 +110,10 @@ function looksLikeNeed(text) {
 
 function extractNeed(text, existingNeed) {
   if (existingNeed) return null;
-  if (looksLikeNeed(text) && (text || "").trim().length >= 10) {
-    return text.trim().slice(0, 300);
+  const t = (text || "").trim();
+  if (looksLikeConsultationQuestion(t)) return null;
+  if (looksLikeNeed(t) && t.length >= 6) {
+    return t.slice(0, 300);
   }
   return null;
 }
@@ -172,7 +183,7 @@ function mergeLeadProfile(profile, text) {
   const budget = extractBudget(text);
   if (budget && !next.budget) next.budget = budget;
 
-  if (!next.need && text.trim().length >= 15 && looksLikeNeed(text)) {
+  if (!next.need && text.trim().length >= 6 && looksLikeNeed(text) && !looksLikeConsultationQuestion(text)) {
     next.need = text.trim().slice(0, 300);
   }
 
@@ -192,4 +203,5 @@ module.exports = {
   hasContact,
   looksLikeNeed,
   refusesName,
+  looksLikeConsultationQuestion,
 };

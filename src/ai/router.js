@@ -11,12 +11,15 @@ const {
   setLeadProfile,
   getSessionMeta,
   setSessionMeta,
+  hydrateThread,
 } = require("../session/store");
 const { queueLeadEvent } = require("../leads/queue");
 const { mergeLeadProfile, refusesName } = require("../leads/extract");
 const {
   buildLeadPromptBlock,
   isLeadComplete,
+  isPostQualify,
+  markQualified,
   buildGreetingForSession,
 } = require("../leads/flow");
 const { getPageContract, getVerticalId } = require("../strategies/page-contracts");
@@ -61,12 +64,12 @@ async function ensureSessionProfile(page, senderId) {
     nameRefused: false,
     fbProfileFetched: true,
   };
-  setSessionMeta(page.id, senderId, meta);
+  setSessionMeta(page.id, senderId, meta, page.projectSlug);
 
   if (meta.profileName) {
     const profile = getLeadProfile(page.id, senderId);
     if (!profile.name) {
-      setLeadProfile(page.id, senderId, { ...profile, name: meta.profileName });
+      setLeadProfile(page.id, senderId, { ...profile, name: meta.profileName }, page.projectSlug);
     }
   }
 
@@ -77,15 +80,16 @@ function updateLeadFromMessage(page, senderId, userText, sessionMeta) {
   let meta = sessionMeta || getSessionMeta(page.id, senderId);
   if (refusesName(userText)) {
     meta = { ...meta, nameRefused: true };
-    setSessionMeta(page.id, senderId, meta);
+    setSessionMeta(page.id, senderId, meta, page.projectSlug);
   }
 
+  const contract = getPageContract(page);
   const prev = getLeadProfile(page.id, senderId);
-  const merged = mergeLeadProfile(prev, userText);
+  const merged = markQualified(mergeLeadProfile(prev, userText), contract, meta);
   if (meta.profileName && !merged.name && !meta.nameRefused) {
     merged.name = meta.profileName;
   }
-  setLeadProfile(page.id, senderId, merged);
+  setLeadProfile(page.id, senderId, merged, page.projectSlug);
   return { profile: merged, sessionMeta: meta };
 }
 
@@ -97,8 +101,8 @@ function maybeQueueCompleteLead(page, senderId, userText, layer, profile, sessio
   }
   if (!isLeadComplete(profile, contract, sessionMeta)) return;
 
-  const next = { ...profile, queued: true };
-  setLeadProfile(page.id, senderId, next);
+  const next = { ...profile, queued: true, qualified: true };
+  setLeadProfile(page.id, senderId, next, page.projectSlug);
 
   queueLeadEvent({
     page,
@@ -111,6 +115,19 @@ function maybeQueueCompleteLead(page, senderId, userText, layer, profile, sessio
   });
 }
 
+function templateContext(page, profile, sessionMeta) {
+  const contract = getPageContract(page);
+  return {
+    profile,
+    sessionMeta,
+    postQualify: isPostQualify(profile, contract, sessionMeta),
+  };
+}
+
+function recordReply(page, senderId, userText, replyText) {
+  appendTurn(page.id, senderId, userText, replyText, page.projectSlug);
+}
+
 /**
  * Main reply pipeline — Layer 0 template → Layer 1/2 LLM (+ RAG) → fallback.
  */
@@ -120,31 +137,37 @@ async function generateReply(page, senderId, userText) {
     return { text: fallbackReply(page), layer: "fallback-empty" };
   }
 
+  await hydrateThread(page.id, senderId, page.projectSlug);
   const sessionMeta = await ensureSessionProfile(page, senderId);
   const { profile, sessionMeta: meta } = updateLeadFromMessage(page, senderId, text, sessionMeta);
+  const contract = getPageContract(page);
+  const postQualify = isPostQualify(profile, contract, meta);
   const leadBlock = buildLeadPromptBlock(page, profile, meta);
+  const tplCtx = templateContext(page, profile, meta);
 
   // Uyển Nhi greeting on first contact / get started
   if (isGreetingLike(text) || isGetStartedLike(text)) {
     const history = getHistory(page.id, senderId);
     if (history.length === 0) {
       const greeting = buildGreetingForSession(page, meta);
-      appendTurn(page.id, senderId, text, greeting);
+      recordReply(page, senderId, text, greeting);
       maybeQueueLead(page, senderId, text, "greeting-intro");
       return { text: greeting, layer: "greeting-intro" };
     }
   }
 
-  // Layer 0
-  const templateHit = matchTemplate(text, page);
+  // Layer 0 — skip intake templates after qualify
+  const templateHit = matchTemplate(text, page, tplCtx);
   if (templateHit) {
+    recordReply(page, senderId, text, templateHit);
     maybeQueueLead(page, senderId, text, "template");
     maybeQueueCompleteLead(page, senderId, text, "template", profile, meta);
-    return { text: templateHit, layer: "template" };
+    return { text: templateHit, layer: postQualify ? "template-post-qualify" : "template" };
   }
 
   if (!isLlmConfigured()) {
     const fb = fallbackReply(page);
+    recordReply(page, senderId, text, fb);
     maybeQueueLead(page, senderId, text, "fallback-no-llm");
     maybeQueueCompleteLead(page, senderId, text, "fallback-no-llm", profile, meta);
     return { text: fb, layer: "fallback-no-llm" };
@@ -176,7 +199,7 @@ async function generateReply(page, senderId, userText) {
       { role: "user", content: text },
     ]);
 
-    appendTurn(page.id, senderId, text, reply);
+    recordReply(page, senderId, text, reply);
     maybeQueueLead(page, senderId, text, layer);
     maybeQueueCompleteLead(
       page,
@@ -195,13 +218,15 @@ async function generateReply(page, senderId, userText) {
       return { text: handoffText, layer: "human-handoff" };
     }
 
-    return { text: reply, layer: `${layer}:${getVerticalId(page)}` };
+    const modeTag = postQualify ? "consult" : "intake";
+    return { text: reply, layer: `${layer}:${getVerticalId(page)}:${modeTag}` };
   } catch (err) {
     logger.error("reply_generation_failed", {
       pageId: page.id,
       error: err.message,
     });
     const fb = fallbackReply(page);
+    recordReply(page, senderId, text, fb);
     maybeQueueLead(page, senderId, text, "fallback-error");
     maybeQueueCompleteLead(page, senderId, text, "fallback-error", profile, meta);
     return { text: fb, layer: "fallback-error" };

@@ -7,6 +7,9 @@ const { getPageContract, getVertical, getFieldLabel } = require("../strategies/p
 const { hasContact } = require("./extract");
 const { buildHonorificAddress } = require("../facebook/profile");
 
+const REQUIRED_FIELDS = ["need", "contact"];
+const OPTIONAL_FIELDS = ["business_type", "timeline", "budget"];
+
 function emptyProfile() {
   return {
     name: null,
@@ -16,6 +19,7 @@ function emptyProfile() {
     need: null,
     timeline: null,
     budget: null,
+    qualified: false,
     queued: false,
   };
 }
@@ -46,8 +50,12 @@ function profileField(profile, field) {
   }
 }
 
-function getNextMissingField(profile, contract, sessionMeta = {}) {
-  for (const field of contract.leadFields) {
+function getNextMissingField(profile, contract, sessionMeta = {}, { intakeOnly = true } = {}) {
+  const fields = intakeOnly
+    ? contract.leadFields.filter((f) => REQUIRED_FIELDS.includes(f) || f === "name")
+    : contract.leadFields;
+
+  for (const field of fields) {
     if (field === "name" && shouldSkipNameField(profile, sessionMeta)) continue;
     if (!profileField(profile, field)) return field;
   }
@@ -55,14 +63,25 @@ function getNextMissingField(profile, contract, sessionMeta = {}) {
 }
 
 function isLeadComplete(profile, contract, sessionMeta = {}) {
-  const required = ["contact", "need"];
-  for (const field of required) {
+  for (const field of REQUIRED_FIELDS) {
+    if (!contract.leadFields.includes(field)) continue;
     if (!profileField(profile, field)) return false;
   }
   if (!shouldSkipNameField(profile, sessionMeta) && contract.leadFields.includes("name")) {
     if (!profileField(profile, "name")) return false;
   }
   return true;
+}
+
+function markQualified(profile, contract, sessionMeta = {}) {
+  const complete = isLeadComplete(profile, contract, sessionMeta);
+  if (!complete) return { ...profile, qualified: false };
+  if (profile.qualified) return profile;
+  return { ...profile, qualified: true };
+}
+
+function isPostQualify(profile, contract, sessionMeta = {}) {
+  return Boolean(profile.qualified || isLeadComplete(profile, contract, sessionMeta));
 }
 
 function buildCollectedSummary(profile, sessionMeta = {}) {
@@ -76,15 +95,31 @@ function buildCollectedSummary(profile, sessionMeta = {}) {
   if (profile.timeline) lines.push(`Timeline: ${profile.timeline}`);
   if (profile.budget) lines.push(`Ngân sách: ${profile.budget}`);
   if (sessionMeta.nameRefused) lines.push(`Xưng hô: anh/chị (khách không muốn cho tên)`);
+  if (profile.qualified) lines.push(`Trạng thái: LEAD ĐÃ QUALIFY`);
   return lines.length ? lines.join("\n") : "(chưa có)";
+}
+
+function buildPostQualifyBlock(profile, sessionMeta = {}) {
+  const address = buildHonorificAddress(sessionMeta);
+  return `
+CHẾ ĐỘ TƯ VẤN SAU QUALIFY (ƯU TIÊN CAO NHẤT):
+- Lead ĐÃ ĐỦ contact + nhu cầu. Xưng hô: ${address}.
+- KHÔNG hỏi lại tên, SĐT, email, ngành/lĩnh vực — đã có trong hồ sơ bên dưới.
+- KHÔNG nói "em cần biết tên", "cho em xin tên", "không thể thấy tên".
+- Khách hỏi tư vấn / thắc mắc / so sánh → trả lời ngắn gọn 3–5 ý dựa trên nhu cầu đã biết.
+- Có thể upsell nhẹ dịch vụ liên quan (hosting, SEO, automation) nếu phù hợp — không ép.
+- Chỉ hỏi timeline/ngân sách khi khách chủ động hỏi báo giá chi tiết hoặc muốn triển khai gấp.
+- Kết thúc: nhắc team SABO sẽ liên hệ theo SĐT đã lưu — không dump hotline.
+`.trim();
 }
 
 function buildLeadPromptBlock(page, profile, sessionMeta = {}) {
   const contract = getPageContract(page);
   const vertical = getVertical(page);
-  const next = getNextMissingField(profile, contract, sessionMeta);
   const collected = buildCollectedSummary(profile, sessionMeta);
   const complete = isLeadComplete(profile, contract, sessionMeta);
+  const postQualify = isPostQualify(profile, contract, sessionMeta);
+  const next = postQualify ? null : getNextMissingField(profile, contract, sessionMeta, { intakeOnly: true });
   const address = buildHonorificAddress(sessionMeta);
 
   let block = `
@@ -95,7 +130,7 @@ XƯNG HÔ KHÁCH: ${address}
 ${sessionMeta.profileName ? `TÊN TỪ FACEBOOK: ${sessionMeta.profileName} — KHÔNG hỏi "tên là gì".` : ""}
 ${sessionMeta.nameRefused ? "Khách từ chối cho tên — chỉ dùng anh/chị, KHÔNG hỏi lại tên." : ""}
 
-HỒ SƠ LEAD ĐÃ THU (PSID session):
+HỒ SƠ LEAD ĐÃ THU (PSID session — PHẢI nhớ xuyên suốt):
 ${collected}
 
 QUY TẮC HỘI THOẠI (ƯU TIÊN CAO — BẮT BUỘC):
@@ -103,19 +138,19 @@ ${vertical.forbidden.map((f) => `- ${f}`).join("\n")}
 - CẤM: "em cần biết tên", "cho em xin tên", "không thể thấy tên user", dump hotline khi chưa được hỏi.
 - Thứ tự tự nhiên: trả lời câu hỏi → làm rõ nhu cầu/loại dịch vụ → khi sẵn sàng báo giá mới xin SĐT/Zalo.
 - SABO/quán chủ động liên hệ khách sau khi có contact.
-- Sau khi trả lời câu hỏi của khách, PHẢI hỏi đúng MỘT field thiếu (nếu còn thiếu).
 `.trim();
+
+  if (postQualify) {
+    block += `\n\n${buildPostQualifyBlock(profile, sessionMeta)}`;
+    return block;
+  }
 
   if (!complete && next) {
     const label = getFieldLabel(page, next);
     block += `
 
-THIẾU: ${label}.
+THIẾU (chỉ hỏi MỘT field này): ${label}.
 BẮT BUỘC LƯỢT NÀY: trả lời ngắn câu hỏi khách (nếu có) → kết thúc bằng hỏi ${label}. Không hỏi dồn nhiều câu. ${vertical.ctaStyle}`;
-  } else if (complete) {
-    block += `
-
-ĐỦ THÔNG TIN LEAD (liên hệ + nhu cầu). Cảm ơn khách, tóm tắt ngắn và nói team sẽ liên hệ sớm. Không hỏi thêm field bắt buộc. Không đưa hotline trừ khi khách hỏi rõ.`;
   }
 
   return block;
@@ -139,11 +174,16 @@ function getGreetingForPage(page) {
 
 module.exports = {
   emptyProfile,
+  REQUIRED_FIELDS,
+  OPTIONAL_FIELDS,
   shouldSkipNameField,
   getNextMissingField,
   isLeadComplete,
+  isPostQualify,
+  markQualified,
   buildLeadPromptBlock,
   buildCollectedSummary,
+  buildPostQualifyBlock,
   buildGreetingForSession,
   getGreetingForPage,
 };

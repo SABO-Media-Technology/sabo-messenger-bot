@@ -54,7 +54,9 @@ async function queueLeadEvent({ page, senderId, userText, replyLayer, profile = 
   const phone = profile?.phone || extractPhone(userText);
   const hot = detectHotLead(userText) || Boolean(profile?.need && phone);
   const source = `messenger:${page.slug}`;
-  const complete = Boolean(profile?.name && (profile?.phone || profile?.email) && profile?.need);
+  const complete = Boolean(
+    (profile?.phone || profile?.email) && profile?.need && (profile?.qualified || profile?.name || profile?.queued),
+  );
 
   if (process.env.LEAD_QUEUE_DRY_RUN === "1") {
     logger.info("lead_dry_run", {
