@@ -23,7 +23,7 @@ const {
   buildGreetingForSession,
 } = require("../leads/flow");
 const { getPageContract, getVerticalId } = require("../strategies/page-contracts");
-const { fetchMessengerProfile, deriveHonorific } = require("../facebook/profile");
+const { fetchMessengerProfile, deriveHonorific, buildHonorificAddress } = require("../facebook/profile");
 const { logger } = require("../utils/logger");
 
 function buildPromptWithRag(basePrompt, ragContext) {
@@ -34,7 +34,23 @@ KIẾN THỨC THAM KHẢO (Brain RAG — ưu tiên nếu liên quan):
 ${ragContext}`;
 }
 
-function fallbackReply(page) {
+function postQualifyFallback(page, profile, sessionMeta) {
+  const address = buildHonorificAddress(sessionMeta);
+  const need = (profile.need || "dự án").slice(0, 80);
+  const isWeb = /website|web|trang/i.test(need);
+  const tip = isWeb
+    ? "landing giới thiệu + form liên hệ, hoặc web bán hàng có giỏ hàng — tùy mục tiêu kinh doanh"
+    : "scope và lộ trình triển khai phù hợp SME";
+  return `Dạ ${address}! Về nhu cầu ${need}: em gợi ý nhanh ${tip}. Team SABO đã lưu SĐT của anh/chị — sẽ liên hệ tư vấn chi tiết và báo giá sát scope nhé!`;
+}
+
+function fallbackReply(page, profile, sessionMeta) {
+  if (profile && sessionMeta) {
+    const contract = getPageContract(page);
+    if (isPostQualify(profile, contract, sessionMeta)) {
+      return postQualifyFallback(page, profile, sessionMeta);
+    }
+  }
   return (
     getReplyText(page.id) ||
     `Cảm ơn anh/chị đã nhắn tin ${page.name}! Em ghi nhận rồi — cho em xin SĐT hoặc Zalo để team SABO liên hệ sớm nhé?`
@@ -166,7 +182,7 @@ async function generateReply(page, senderId, userText) {
   }
 
   if (!isLlmConfigured()) {
-    const fb = fallbackReply(page);
+    const fb = fallbackReply(page, profile, meta);
     recordReply(page, senderId, text, fb);
     maybeQueueLead(page, senderId, text, "fallback-no-llm");
     maybeQueueCompleteLead(page, senderId, text, "fallback-no-llm", profile, meta);
@@ -225,7 +241,7 @@ async function generateReply(page, senderId, userText) {
       pageId: page.id,
       error: err.message,
     });
-    const fb = fallbackReply(page);
+    const fb = fallbackReply(page, profile, meta);
     recordReply(page, senderId, text, fb);
     maybeQueueLead(page, senderId, text, "fallback-error");
     maybeQueueCompleteLead(page, senderId, text, "fallback-error", profile, meta);

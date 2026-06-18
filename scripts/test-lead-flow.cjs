@@ -1,162 +1,106 @@
 /**
-
- * Unit test — lead extraction + progressive flow + vertical segmentation.
-
+ * Unit test — lead extraction + progressive flow + vertical segmentation + session memory.
  * Usage: npm run test:lead-flow
-
  */
-
 const path = require("path");
 
-
-
 process.chdir(path.join(__dirname, ".."));
-
 process.env.LEAD_QUEUE_DRY_RUN = "1";
 
-
-
 const { loadPageRegistry, getPage } = require("../src/pages");
-
-const { mergeLeadProfile } = require("../src/leads/extract");
-
+const { mergeLeadProfile, looksLikeConsultationQuestion } = require("../src/leads/extract");
 const {
-
   emptyProfile,
-
   getNextMissingField,
-
   isLeadComplete,
-
+  isPostQualify,
   buildLeadPromptBlock,
-
+  buildPostQualifyBlock,
 } = require("../src/leads/flow");
-
 const {
-
   getPageContract,
-
   getVertical,
-
   getVerticalId,
-
   VERTICALS,
-
 } = require("../src/strategies/page-contracts");
-
 const { getSystemPrompt } = require("../src/responses/prompts");
-
 const { getUyenNhiBlock } = require("../src/personas/uyen-nhi");
-
 const { generateReply } = require("../src/ai/router");
-
-const { clearThread, setSessionMeta } = require("../src/session/store");
-
+const { clearThread, setSessionMeta, setLeadProfile, getLeadProfile } = require("../src/session/store");
 const { refusesName } = require("../src/leads/extract");
 const { buildGreetingForSession, shouldSkipNameField } = require("../src/leads/flow");
 const { matchTemplate } = require("../src/ai/templates");
 
-
-
 function assert(cond, msg) {
-
   if (!cond) throw new Error(msg);
-
 }
-
-
 
 function testExtract() {
-
   let p = emptyProfile();
-
   p = mergeLeadProfile(p, "Tên tôi là Nguyễn Văn A");
-
   assert(p.name === "Nguyễn Văn A", "extract name");
 
-
-
   p = mergeLeadProfile(p, "SĐT em 0912345678");
-
   assert(p.phone === "0912345678", "extract phone");
 
-
-
   p = mergeLeadProfile(p, "Em cần làm website bán hàng cho shop thời trang");
-
   assert(p.need && p.need.includes("website"), "extract need");
 
+  assert(looksLikeConsultationQuestion("mày không tư vấn sơ về trang web à?"), "consult question detect");
+  const noName = mergeLeadProfile(emptyProfile(), "mày không tư vấn sơ về trang web à?");
+  assert(!noName.name, "consult question must not become name");
 }
-
-
 
 function testFlowContract() {
-
   const page = { projectSlug: "sabo-mt" };
-
   const contract = getPageContract(page);
-
   assert(contract.persona === "uyen_nhi", "sabo-mt persona");
-
   assert(contract.vertical === "sabo-mt-services", "sabo-mt vertical");
-
   assert(contract.leadFields.includes("need"), "has need field");
-
   assert(contract.leadFields.includes("contact"), "has contact field");
 
-
-
   let p = emptyProfile();
-
   assert(getNextMissingField(p, contract) === "need", "first missing = need");
-
   p.need = "Làm website";
-
   assert(getNextMissingField(p, contract) === "contact", "second = contact");
-
   p.phone = "0901234567";
-
   assert(isLeadComplete(p, contract) === true, "complete with need+contact");
-
-  assert(getNextMissingField(p, contract) === "business_type", "optional field next");
-
+  assert(isPostQualify({ ...p, qualified: true }, contract), "post-qualify when flagged");
+  assert(getNextMissingField(p, contract, {}, { intakeOnly: false }) === "business_type", "optional field when intakeOnly=false");
 }
 
-
+function testPostQualifyPromptBlock() {
+  const page = { projectSlug: "sabo-mt" };
+  const profile = {
+    ...emptyProfile(),
+    name: "Nhi",
+    phone: "0961167717",
+    need: "Làm website bán hàng",
+    qualified: true,
+  };
+  const block = buildLeadPromptBlock(page, profile, { firstName: "Nhi", profileName: "Nhi" });
+  assert(block.includes("CHẾ ĐỘ TƯ VẤN SAU QUALIFY"), "has post-qualify block");
+  assert(!block.includes("THIẾU: tên"), "no missing name in post-qualify");
+  assert(!block.includes("THIẾU (chỉ hỏi"), "no intake missing field in post-qualify");
+  assert(buildPostQualifyBlock(profile).includes("KHÔNG hỏi lại tên"), "post-qualify forbids re-ask name");
+}
 
 function testVerticalMapping() {
-
   const expected = {
-
     "sabo-mt": "sabo-mt-services",
-
     "sabo-billiards": "billiards-ops",
-
     "sabo-arena": "billiards-ops",
-
     ainewbie: "ai-education",
-
     "ai-art": "ai-education",
-
     vungtau: "real-estate",
-
     sabohub: "platform",
-
   };
-
   for (const [slug, vertical] of Object.entries(expected)) {
-
     assert(getVerticalId({ projectSlug: slug }) === vertical, `vertical ${slug}`);
-
     assert(VERTICALS[vertical], `vertical def ${vertical}`);
-
   }
-
   console.log("  vertical mapping (7 slugs → 5 verticals): OK");
-
 }
-
-
 
 function testNameRefusalAndFbProfile() {
   assert(refusesName("tao không muốn cho mày biết tên"), "detect name refusal");
@@ -181,6 +125,18 @@ function testProductInquiryTemplate() {
   assert(budget && !/0798893333/.test(budget), "budget question no hotline");
 }
 
+function testTemplateSkipsIntakeWhenQualified() {
+  const page = { projectSlug: "sabo-mt" };
+  const profile = {
+    ...emptyProfile(),
+    need: "website",
+    phone: "0961167717",
+    qualified: true,
+  };
+  const hit = matchTemplate("bên em có làm app không", page, { profile, postQualify: true });
+  assert(hit === null, "qualified lead skips intake template — LLM consults instead");
+}
+
 function testBilliardsNoHotlineGreeting() {
   const page = { projectSlug: "sabo-billiards" };
   const contract = getPageContract(page);
@@ -189,57 +145,32 @@ function testBilliardsNoHotlineGreeting() {
   assert(!/xin tên/i.test(contract.greetingIntro), "billiards greeting no ask name");
 }
 
-
-
 function testVerticalTemplates() {
-
   const billiards = matchTemplate("Đặt bàn chiều nay", { projectSlug: "sabo-billiards" });
-
   assert(billiards && /đặt bàn|sđt/i.test(billiards), "billiards book template");
 
-
-
   const bds = matchTemplate("Giá nhà Vũng Tàu", { projectSlug: "vungtau" });
-
   assert(bds && /khu|sđt/i.test(bds), "real-estate pricing template");
-
 }
-
-
 
 function testPromptHasPersonaAndVertical() {
-
   const page = { projectSlug: "ainewbie" };
-
   const block = buildLeadPromptBlock(page, emptyProfile());
-
   const sys = getSystemPrompt(page, block);
-
   assert(sys.includes("UYỂN NHI"), "system has Uyển Nhi");
-
   assert(sys.includes("AI EDUCATION"), "system has vertical block");
-
   assert(sys.includes("THIẾU"), "system has missing field hint");
-
   assert(getUyenNhiBlock().includes("em"), "DNA voice");
 
-
-
   const billiardsPage = { projectSlug: "sabo-billiards" };
-
   const billiardsSys = getSystemPrompt(billiardsPage, "");
-
   assert(billiardsSys.includes("BILLIARDS OPS"), "billiards vertical in prompt");
-
   assert(billiardsSys.includes("NHÂN VIÊN"), "venue persona block");
-
 }
-
-
 
 async function testNameRefusalReply() {
   loadPageRegistry();
-  const page = getPage("332950393234346"); // SABO M&T
+  const page = getPage("332950393234346");
   const senderId = "test_name_refusal";
   clearThread(page.id, senderId);
   setSessionMeta(page.id, senderId, {
@@ -255,17 +186,44 @@ async function testNameRefusalReply() {
   console.log("  name refusal + FB profile: OK");
 }
 
-async function testMultiTurn() {
+async function testSaboMtPostQualifyMultiTurn() {
   loadPageRegistry();
-
-  const page = getPage("569671719553461"); // AI Newbie VN
-
-  const senderId = "test_lead_flow_multi";
-
+  const page = getPage("332950393234346");
+  const senderId = "test_sabo_mt_post_qualify";
   clearThread(page.id, senderId);
 
   const turns = [
-    { in: "Xin chào", expectLayer: "greeting-intro", check: (t) => /Uyển Nhi/i.test(t) && !/xin tên/i.test(t) },
+    { in: "Em cần làm website bán hàng", checkProfile: (p) => Boolean(p.need) },
+    { in: "nhi", checkProfile: (p) => p.name === "nhi" },
+    { in: "0961167717", checkProfile: (p) => p.phone === "0961167717" && p.qualified },
+    {
+      in: "mày không tư vấn sơ về trang web à?",
+      checkReply: (t) =>
+        !/xin tên|cho em.*tên|tên là gì|không thể thấy tên/i.test(t) &&
+        !/ngành|lĩnh vực kinh doanh/i.test(t) &&
+        /website|web|trang/i.test(t),
+    },
+  ];
+
+  for (const turn of turns) {
+    const { text } = await generateReply(page, senderId, turn.in);
+    const profile = getLeadProfile(page.id, senderId);
+    if (turn.checkProfile) assert(turn.checkProfile(profile), `profile after: ${turn.in}`);
+    if (turn.checkReply) assert(turn.checkReply(text), `reply must consult, not re-intake: ${text.slice(0, 120)}`);
+  }
+
+  console.log("  SABO M&T post-qualify multi-turn: OK");
+}
+
+async function testMultiTurnAinewbie() {
+  loadPageRegistry();
+  const page = getPage("569671719553461");
+  const senderId = "test_lead_flow_multi";
+  clearThread(page.id, senderId);
+
+  const turns = [
+    { in: "Xin chào", expectLayer: "greeting-intro", check: (t) => /Uyển Nhi/i.test(t) },
+    { in: "Em tên Minh", check: (t) => t.length > 10 },
     { in: "0909888777", check: (t) => t.length > 10 },
     { in: "Em muốn học ChatGPT cho công việc marketing", check: (t) => t.length > 10 },
   ];
@@ -279,55 +237,36 @@ async function testMultiTurn() {
   console.log("  multi-turn AI Newbie VN: OK");
 }
 
-
-
 async function main() {
-
-  console.log("\n=== Lead Flow + Vertical Tests ===\n");
-
+  console.log("\n=== Lead Flow + Vertical + Session Memory Tests ===\n");
   testExtract();
-
   console.log("  extract entities: OK");
-
   testFlowContract();
-
   console.log("  page contract flow: OK");
-
+  testPostQualifyPromptBlock();
+  console.log("  post-qualify prompt block: OK");
   testVerticalMapping();
-
   testNameRefusalAndFbProfile();
   console.log("  FB profile + name refusal rules: OK");
-
   testProductInquiryTemplate();
   console.log("  product inquiry / budget no hotline: OK");
-
+  testTemplateSkipsIntakeWhenQualified();
+  console.log("  template skips intake when qualified: OK");
   testBilliardsNoHotlineGreeting();
-
   console.log("  billiards no-hotline greeting: OK");
-
   testVerticalTemplates();
-
   console.log("  vertical templates: OK");
-
   testPromptHasPersonaAndVertical();
-
   console.log("  persona + vertical in system prompt: OK");
 
   await testNameRefusalReply();
-  await testMultiTurn();
+  await testSaboMtPostQualifyMultiTurn();
+  await testMultiTurnAinewbie();
 
   console.log("\nAll lead-flow tests passed.\n");
-
 }
 
-
-
 main().catch((err) => {
-
   console.error("FAIL:", err.message);
-
   process.exit(1);
-
 });
-
-

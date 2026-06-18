@@ -1,3 +1,43 @@
+## [2026-06-18] Session memory + post-qualify consult (CEO SABO Media bug)
+
+### Root cause (audit)
+| Area | Broken | Evidence |
+|------|--------|----------|
+| Memory | Optional fields (ngành) vẫn inject "THIẾU" sau qualify | CEO turn 4 hỏi lại tên + ngành |
+| extract.js | Câu need dài bị parse nhầm thành `name` | "Em cần làm website..." → name pollution |
+| Templates | Layer 0 intake templates không biết lead đã qualify | Re-ask contact/dịch vụ |
+| History | Template/fallback không `appendTurn` | LLM mất context |
+| Persist | Chỉ RAM — Render cold start mất session | `001_messenger_threads` chưa wire |
+
+### Đã làm
+- `qualified` flag + `CHẾ ĐỘ TƯ VẤN SAU QUALIFY` trong `buildLeadPromptBlock`
+- `isPostQualify` — tách intake vs consult; optional fields không ép hỏi sau qualify
+- `src/session/persist.js` — Supabase upsert `messages+lead+meta` per PSID
+- `hydrateThread()` + `appendTurn` trên mọi reply path
+- Templates context-aware — skip intake khi `postQualify`
+- `postQualifyFallback()` khi LLM down
+- `extractName` — reject `looksLikeNeed` / consultation questions
+- Test: `testSaboMtPostQualifyMultiTurn` (CEO transcript replay)
+
+### Files changed
+- src/session/store.js, src/session/persist.js (new)
+- src/leads/flow.js, src/leads/extract.js, src/leads/queue.js
+- src/ai/router.js, src/ai/templates.js
+- src/responses/prompts.js
+- scripts/test-lead-flow.cjs
+- sql/003_messenger_threads_lead_meta.sql (new)
+- docs/MESSENGER_BOT_REFERENCE.md
+
+### Verify
+```bash
+npm run test:lead-flow && npm run test:replies
+# Pass 37 | Warn 1 | Fail 0
+```
+
+### Chưa làm / handoff
+- Chạy migration `003_messenger_threads_lead_meta.sql` trên shared Supabase (CEO/ops)
+- CEO retest live inbox SABO Media sau deploy
+
 ## [2026-06-18] Sales UX — FB profile name + Highvision flow (CEO critique)
 
 ### Root cause

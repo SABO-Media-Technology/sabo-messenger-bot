@@ -6,7 +6,16 @@
 const axios = require("axios");
 const { logger } = require("../utils/logger");
 const { emptyProfile } = require("../leads/flow");
-const { emptySessionMeta } = require("./store");
+
+function defaultSessionMeta() {
+  return {
+    profileName: null,
+    firstName: null,
+    honorific: "anh/chị",
+    nameRefused: false,
+    fbProfileFetched: false,
+  };
+}
 
 function isPersistConfigured() {
   return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY);
@@ -62,7 +71,7 @@ async function loadThread(pageId, senderId) {
   return {
     messages: Array.isArray(row.messages) ? row.messages : [],
     lead: { ...emptyProfile(), ...(row.lead || {}) },
-    meta: { ...emptySessionMeta(), ...(row.meta || {}) },
+    meta: { ...defaultSessionMeta(), ...(row.meta || {}) },
     projectSlug: row.project_slug || null,
   };
 }
@@ -76,7 +85,7 @@ function saveThread(pageId, senderId, projectSlug, entry) {
     project_slug: projectSlug || null,
     messages: entry.messages || [],
     lead: entry.lead || emptyProfile(),
-    meta: entry.meta || emptySessionMeta(),
+    meta: entry.meta || defaultSessionMeta(),
     updated_at: new Date().toISOString(),
   };
 

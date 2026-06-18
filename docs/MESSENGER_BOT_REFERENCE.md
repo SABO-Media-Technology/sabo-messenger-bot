@@ -257,6 +257,27 @@ Bot phải hành xử như nhân viên sales VN thật, **không** interrogation
 4. **Complete** = có `need` + `contact` (name optional — từ FB hoặc bỏ qua nếu refused)
 5. `queueLeadEvent` → `messenger_leads` + Telegram khi qualified / hot intent
 
+### Session memory + post-qualify behavior (CEO bugfix 2026-06-18)
+
+**Vấn đề đã fix:** Sau khi lead đủ (need + SĐT), bot hỏi lại tên/ngành — mất session.
+
+| Layer | Hành vi |
+|-------|---------|
+| `store.js` | In-memory Map `(pageId, PSID)` → `messages`, `lead`, `meta`; TTL 24h |
+| `persist.js` | Optional Supabase upsert `messenger_threads` (survive Render cold start) — cần migration `003_messenger_threads_lead_meta.sql` |
+| `hydrateThread()` | Gọi đầu mỗi `generateReply` — load session từ DB nếu RAM trống |
+| `qualified` flag | Set `true` khi `need` + `contact` đủ — kích hoạt **CHẾ ĐỘ TƯ VẤN SAU QUALIFY** |
+| Post-qualify prompt | Cấm hỏi lại tên/SĐT/ngành; trả lời tư vấn ngắn + upsell nhẹ; nhắc team sẽ gọi theo SĐT đã lưu |
+| Templates Layer 0 | Sau qualify: chỉ hotline/cảm ơn — intake templates (giá/sản phẩm) → LLM |
+| `appendTurn` | Mọi reply path (template/fallback/LLM) ghi history để LLM nhớ context |
+| FB profile | `ensureSessionProfile()` — Graph API `first_name,name` lần đầu; auto-fill `lead.name` |
+
+**Retest CEO scenario:**
+```bash
+npm run test:lead-flow
+# testSaboMtPostQualifyMultiTurn: website → nhi → 0961167717 → "tư vấn sơ" → KHÔNG hỏi tên/ngành
+```
+
 **Lead behavior (CEO policy 2026-06-18):**
 
 | Rule | Chi tiết |
@@ -278,6 +299,8 @@ src/personas/uyen-nhi.js
 src/leads/flow.js
 src/leads/extract.js
 src/leads/queue.js
+src/session/store.js
+src/session/persist.js
 src/responses/prompts.js
 src/responses/greeting.js
 ```

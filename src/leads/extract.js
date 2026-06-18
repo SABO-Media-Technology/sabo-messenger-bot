@@ -60,7 +60,11 @@ function extractName(text) {
 
   if (t.length >= 2 && t.length <= 35 && !/\d/.test(t) && !/@/.test(t)) {
     const lower = t.toLowerCase();
-    if (!SKIP_NAME.has(lower) && !/^(tư vấn|báo giá|giá|website|app)$/i.test(t)) {
+    if (
+      !SKIP_NAME.has(lower) &&
+      !/^(tư vấn|báo giá|giá|website|app)$/i.test(t) &&
+      !looksLikeNeed(t)
+    ) {
       return t;
     }
   }
