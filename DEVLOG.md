@@ -1,4 +1,35 @@
-- **2026-06-18 ship verify:** `origin/main` `890decc`+`2f9186a` synced; Render `/health` ok; `db:migrate` 001–003; `test:lead-flow` + `test:replies` 37 pass / 0 fail.
+- **2026-06-18 ship verify:** `origin/main` `2143385` post-qualify consult fix pushed; Render auto-deploy from push; `test:lead-flow` + `test:replies` pass.
+
+## [2026-06-18] HOTFIX post-qualify loop — identical reply mọi turn (`2143385`)
+
+### Root cause
+- Groq LLM thường fail 429 trên production → `fallback-error` path
+- `postQualifyFallback()` trả **cùng một câu tĩnh** mọi intent (giá / tư vấn / đổi nhu cầu)
+- `extractNeed()` không cập nhật khi khách pivot web→app
+
+### Đã làm
+- `src/leads/post-qualify-consult.js` — fallback theo intent: pricing ballpark, consult snippet, need pivot
+- `extractNeedUpdate()` — cập nhật `lead.need` khi khách đổi hướng
+- `buildPostQualifyBlock` + pricing hint cho LLM — bắt buộc tư vấn thật, không chỉ "team sẽ gọi"
+- `router.js` — truyền `userText` vào fallback; temperature 0.65 post-qualify
+- Test: `testPostQualifyPricingNotIdentical` — "giá cả như nào" ≠ consult reply, có yếu tố giá
+
+### Files changed
+- src/leads/post-qualify-consult.js (new)
+- src/ai/router.js, src/ai/llm.js
+- src/leads/extract.js, src/leads/flow.js
+- scripts/test-lead-flow.cjs
+
+### Verify
+```bash
+npm run test:lead-flow   # all pass incl. post-qualify pricing test
+npm run test:replies     # 37 pass, 0 fail
+git push origin main     # 2143385
+```
+
+### Chưa làm / handoff (CEO)
+- Retest live SABO Media: qualify → "giá cả như nào" / "tư vấn sơ web" / "giờ thích làm app" — mỗi câu reply khác nhau
+- Nếu vẫn fallback: check Render log Groq 429 — cân nhắc rate limit / model tier
 
 ## [2026-06-18] Ship post-qualify consult fix (`890decc`)
 
