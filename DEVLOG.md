@@ -1,3 +1,5 @@
+- **2026-06-18 ship verify:** `origin/main` `890decc`+`2f9186a` synced; Render `/health` ok; `db:migrate` 001–003; `test:lead-flow` + `test:replies` 37 pass / 0 fail.
+
 ## [2026-06-18] Ship post-qualify consult fix (`890decc`)
 
 ### Đã làm
