@@ -38,6 +38,7 @@ function channelMetadata(page) {
   return {
     agent: "uyen-nhi",
     channel: "facebook_messenger",
+    policy: "customer_safe",
     pageId: page.id,
     pageName: page.name || "",
     vertical: page.projectSlug || "sabo-mt",
@@ -78,6 +79,7 @@ async function chatHermes({ page, senderId, systemPrompt, history, userText, tem
     "X-Hermes-Session-Key": sessionKey(page, senderId),
     "X-Hermes-Channel": "facebook_messenger",
     "X-Hermes-Agent": "uyen-nhi",
+    "X-Hermes-Policy": "customer_safe",
     "X-Hermes-Page-Id": String(page.id || ""),
   };
   if (cfg.apiKey) {
@@ -89,6 +91,7 @@ async function chatHermes({ page, senderId, systemPrompt, history, userText, tem
     {
       model: cfg.model,
       messages,
+      metadata: channelMetadata(page),
       max_tokens: 520,
       temperature,
       stream: false,

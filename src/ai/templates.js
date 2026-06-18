@@ -1,5 +1,6 @@
 const { HOTLINE } = require("../responses/prompts");
 
+const { pickVariant, hashSeed } = require("../responses/variation");
 const { getVerticalId, getPageContract } = require("../strategies/page-contracts");
 const { isPostQualify } = require("../leads/flow");
 
@@ -23,7 +24,15 @@ const THANKS_RULE = {
 
   patterns: [/cảm ơn|thank|thanks/i],
 
-  reply: () => `Dạ không có chi! Anh/chị cần hỗ trợ thêm cứ nhắn em nhé.`,
+  reply: (_page, userText) =>
+    pickVariant(
+      [
+        `Dạ không có chi! Anh/chị cần hỗ trợ thêm cứ nhắn em nhé.`,
+        `Dạ vâng ạ! Có gì thắc mắc cứ hỏi em tiếp nhé.`,
+        `Không có gì ạ! Anh/chị nhắn em bất cứ lúc nào.`,
+      ],
+      hashSeed(userText || "thanks"),
+    ),
 
 };
 
@@ -261,7 +270,7 @@ function matchTemplate(userText, page, ctx = {}) {
       continue;
     }
 
-    return rule.reply(page);
+    return rule.reply(page, text);
   }
   return null;
 }
