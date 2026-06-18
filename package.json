@@ -1,0 +1,21 @@
+{
+  "name": "messenger-bot",
+  "version": "1.0.0",
+  "description": "Multi-page Facebook Messenger webhook server for SABO pages",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node --use-system-ca src/index.js",
+    "dev": "node --use-system-ca --watch src/index.js",
+    "test:replies": "node --use-system-ca scripts/test-replies.cjs",
+    "db:migrate": "node --use-system-ca scripts/run-migration.cjs",
+    "test:lead": "node --use-system-ca scripts/test-lead-live.cjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  }
+}
