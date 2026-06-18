@@ -36,8 +36,13 @@ npm run test:lead-flow  → All passed (multi-turn AI Newbie VN)
 npm run test:replies    → 33/33 pass, greeting-intro có Uyển Nhi
 ```
 
+### Production deploy (2026-06-18)
+- Git: `26f0e81` pushed → `longsangsabo2025/sabo-messenger-bot` main
+- Render: deploy `dep-d8ptrrlckfvc73aimsng` → **live**
+- Health: `https://sabo-messenger-bot.onrender.com/health` → `status: ok`, 11 pages, leadQueue: true
+
 ### Chưa làm / handoff
-- **Render redeploy** cần để production nhận code mới: `npm run deploy:render` hoặc manual deploy từ dashboard
+- `npm run deploy:render` script: GET `/services/{id}` fail → fallback create 403; dùng Render API trực tiếp hoặc fix lookup
 - CEO test Messenger: AI Newbie VN + SABO Media — flow chào → tên → SĐT → nhu cầu → check Telegram notify + `messenger_leads` row `lead_status=qualified`
 
 ## [2026-06-18] Messenger Bot v2 — AI inbox 11 pages (không Travis)
