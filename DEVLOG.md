@@ -623,3 +623,22 @@ curl https://sabo-messenger-bot.onrender.com/health
 ### Test
 - Nhắn bất kỳ page SABO trên Messenger → reply vài giây (webhook Live app)
 
+
+## [2026-06-18] Uyển Nhi omnichannel production path
+### Đã làm
+- Chạy `setup-uyen-nhi-hermes-profile.ps1` → profile `~/.hermes/profiles/uyen-nhi`
+- Hermes lab :8642 và :8643 `/health` OK (không có PM2 `hermes-uyen-nhi` trong ecosystem; dùng lab :8642 qua tunnel)
+- Cloudflare quick tunnels: Hermes → `*.trycloudflare.com` (port 8642), Ollama → `*.trycloudflare.com` (port 11434, `/v1`)
+- Render: `deploy:render` với `RENDER_API_KEY` từ `.env.secrets` + env `HERMES_ENABLED`, tunnel URLs, `LLM_PROVIDER=auto`, `OLLAMA_*`
+- Deploy `dep-d8putqbsq97s738h6eu0` → live
+- `npm run test:hermes` OK (Uyển Nhi session + RAG + lead queue)
+- Git commit `1d0ee37` (+ 3 commit local trước đó) — push fail SSL/auth
+
+### Files changed (commit)
+- scripts/setup-uyen-nhi-hermes-profile.ps1, hermes-profiles/, src/personas/uyen-nhi-soul.js, hermes-client, router, prompts, tests, docs
+
+### Chưa làm / handoff
+- **CEO:** `git push` từ máy founder (lỗi: `unable to get local issuer certificate` rồi `Authentication failed`) — sau push Render auto-deploy sẽ có `/health` field `ai.hermes`
+- Giữ cloudflared chạy nền hoặc chuyển named tunnel; quick tunnel đổi URL mỗi lần restart
+- Cân nhắc thêm `hermes-uyen-nhi` vào PM2 ecosystem :8643 nếu tách khỏi lab :8642
+- Đặt `RENDER_API_KEY` đúng trong messenger-bot bootstrap (tránh key 32-char sai từ env khác chặn deploy script)
