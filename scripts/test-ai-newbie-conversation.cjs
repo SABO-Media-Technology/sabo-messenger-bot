@@ -12,7 +12,7 @@ const { emptyProfile } = require("../src/leads/flow");
 const { clearThread, setLeadProfile, setSessionMeta } = require("../src/session/store");
 const { getVerticalId } = require("../src/strategies/page-contracts");
 const { asksForOwnPhone } = require("../src/leads/extract");
-const { buildSystemPrompt, THIN_BEHAVIOR_RULES } = require("../src/ai/prompt-builder");
+const { buildSystemPrompt } = require("../src/ai/prompt-builder");
 
 const llmPath = require.resolve("../src/ai/llm");
 const routerPath = require.resolve("../src/ai/router");
@@ -39,7 +39,7 @@ function stubLlmForAiNewbie() {
   return loadRouterWithLlmStub(async (systemPrompt, messages) => {
     const user = messages[messages.length - 1]?.content || "";
     assert(/ai-education|khóa học|AI Newbie/i.test(systemPrompt), "prompt must be AI education vertical");
-    assert(/không làm|tôn trọng|KHÔNG pivot/i.test(THIN_BEHAVIOR_RULES), "thin behavior rules present");
+    assert(/không làm|tôn trọng|KHÔNG pivot/i.test(systemPrompt), "prompt must include churn guidance");
     if (/không làm nữa/i.test(user)) {
       return "Dạ em hiểu ạ — cảm ơn anh/chị đã quan tâm khóa học AI. Sau này cần lộ trình học hay ChatGPT cứ nhắn em nhé!";
     }

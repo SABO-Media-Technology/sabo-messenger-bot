@@ -1,5 +1,6 @@
 /**
- * Thin-bot system prompt — one builder, page-specific behavior via prompt (not router handlers).
+ * Single system prompt builder — per-page vertical behavior lives here, not in router handlers.
+ * Pattern: vercel/chatbot buildSystemPrompt() + meta-ai-chatbot page context.
  */
 const { getUyenNhiBlock } = require("../personas/uyen-nhi");
 const { getPageContract, buildVerticalPromptBlock, getVerticalId } = require("../strategies/page-contracts");
@@ -20,16 +21,6 @@ const FORBIDDEN_PHRASES = [
   "gọi điện cho",
 ];
 
-const THIN_BEHAVIOR_RULES = `
-HÀNH VI THEO TÌNH HUỐNG (trong prompt — không cần module riêng):
-- Khách nói không làm / thôi / bỏ / hủy → tôn trọng, cảm ơn ngắn, KHÔNG pivot sang dịch vụ SME/web/scope khác. AI Newbie: giữ khóa học AI, KHÔNG đẩy web doanh nghiệp.
-- Khách nhắc page/trang là về khóa học AI → xác nhận đúng vertical trang, gợi lộ trình học AI / ChatGPT / tài liệu — KHÔNG SME scope web.
-- Khách bực / "m có trả lời được gì đâu" → xin lỗi ngắn, hỏi muốn em giúp cụ thể phần nào (scope web, quy trình, hay xin SĐT/Zalo) — KHÔNG nói đã có SĐT nếu chưa có.
-- Khách hỏi scope / gợi scope / ưu tiên web thu lead → gợi deliverable cụ thể (landing, form, Zalo, timeline tuần) — không essay MVP app đầu tiên.
-- Khách hỏi dịch vụ thú vị / discovery → gợi 2–3 dịch vụ SABO cụ thể (web, SABOHUB, bot) + một câu hỏi mở — không bảng giá VND.
-- Khách phủ nhận đã cho SĐT → xin lỗi, KHÔNG tranh cãi, xin SĐT/Zalo lại MỘT lần.
-`.trim();
-
 const SHARED_RULES = `
 QUY TẮC CHUNG:
 - Trả lời tiếng Việt nếu khách dùng tiếng Việt; English nếu khách dùng English.
@@ -46,11 +37,49 @@ QUY TẮC CHUNG:
 - Không bịa fact; không nhắc .env hay cấu hình nội bộ.
 `.trim();
 
+/** Per-vertical situational rules — replaces separate router intent handlers. */
+const VERTICAL_BEHAVIOR = {
+  "ai-education": `
+HÀNH VI AI NEWBIE (khóa học AI — KHÔNG SME/web):
+- Khách nói không làm / thôi / bỏ → tôn trọng, cảm ơn ngắn về khóa học AI. KHÔNG pivot sang web doanh nghiệp hay scope SME.
+- Khách nhắc page là về khóa học AI → xác nhận đúng, gợi lộ trình ChatGPT / học tạo ảnh AI.
+- Khách hỏi giá/học phí → không báo số; xin Zalo/SĐT để team gửi thông tin khóa học.
+- Không đẩy thiết kế web, landing thu lead, hay automation B2B trừ khi khách tự hỏi dịch vụ doanh nghiệp.
+`.trim(),
+  "sabo-mt-services": `
+HÀNH VI SABO M&T (B2B chuyển đổi số):
+- Khách hỏi dịch vụ thú vị / discovery → gợi 2–3 dịch vụ cụ thể (web thu lead, SABOHUB, bot Messenger) + một câu hỏi mở.
+- Khách ưu tiên web thu lead → gợi deliverable cụ thể: landing, form, Zalo, timeline ~1–2 tuần — không essay MVP app.
+- Khách gợi scope → trang/landing/form/Zalo/hosting/SSL — không mở đầu generic "có gì thắc mắc".
+- Khách bực / "m có trả lời được gì đâu" → xin lỗi ngắn, hỏi muốn em giúp phần nào (scope web, quy trình, SĐT/Zalo).
+- Khách phủ nhận đã cho SĐT → xin lỗi, KHÔNG tranh cãi, xin SĐT/Zalo lại MỘT lần.
+`.trim(),
+  billiards: `
+HÀNH VI QUÁN BIDA:
+- Tone địa phương, năng động. Đặt bàn, giải đấu, app quản lý giải.
+- Không dump hotline; không đẩy khách gọi điện.
+`.trim(),
+  "real-estate": `
+HÀNH VI BĐS VŨNG TÀU:
+- Hỏi mua/thuê, khu vực, loại nhà. Không báo giá căn nếu chưa có data.
+`.trim(),
+  platform: `
+HÀNH VI SABOHUB:
+- Giải thích Company OS ngắn → hỏi ngành/use case → xin SĐT/Zalo demo.
+`.trim(),
+};
+
+function buildVerticalBehaviorBlock(page) {
+  const verticalId = getVerticalId(page);
+  return VERTICAL_BEHAVIOR[verticalId] || VERTICAL_BEHAVIOR["sabo-mt-services"];
+}
+
 function buildSystemPrompt({ page, sessionMeta = {}, leadProfile = {}, ragContext = null }) {
   const key = page.projectSlug || "sabo-mt";
   const contract = getPageContract(page);
   const verticalId = getVerticalId(page);
   const verticalBlock = buildVerticalPromptBlock(page);
+  const behaviorBlock = buildVerticalBehaviorBlock(page);
   const projectCtx = PROJECT_CONTEXT[key] || PROJECT_CONTEXT["sabo-mt"];
   const leadBlock = buildLeadPromptBlock(page, leadProfile, sessionMeta);
 
@@ -58,13 +87,13 @@ function buildSystemPrompt({ page, sessionMeta = {}, leadProfile = {}, ragContex
 
 ${verticalBlock}
 
+${behaviorBlock}
+
 NGỮ CẢNH TRANG: ${projectCtx}
 VERTICAL: ${verticalId}
 MỤC TIÊU: ${contract.goal}
 
 ${SHARED_RULES}
-
-${THIN_BEHAVIOR_RULES}
 
 ${buildPricingPolicyPromptBlock()}
 
@@ -96,7 +125,6 @@ function buildPhoneRecallReply(page, profile, sessionMeta) {
 module.exports = {
   buildSystemPrompt,
   buildPhoneRecallReply,
-  THIN_BEHAVIOR_RULES,
   SHARED_RULES,
   HOTLINE,
 };

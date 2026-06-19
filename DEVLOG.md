@@ -1097,3 +1097,26 @@ pm run test:hermes OK page 332950393234346; Groq API ping OK.
 
 ## [2026-06-19] Pricing handoff (30cb5ca)
 - Push main OK (schannel, cleared bad GITHUB_TOKEN); deploy:render live dep-d8qdj2e8bjmc738k5ceg; prod /health gitCommit 30cb5ca; test:predeploy PASS.
+
+## [2026-06-19] OSS pure pattern — LLM-first, no sales handler layers
+
+### Đã làm
+- Reset main → d99ca89; drop 11da26b/8da57b7 sales-handler restore
+- VERTICAL_BEHAVIOR trong prompt-builder.js thay sales-scope/preference/discovery/frustration-recovery handlers
+- Router 261 lines: customer-safe-in → phone-recall → pricing-handoff → greeting (turn 1) → LLM → customer-safe-out + lead queue
+- 
+pm run test:predeploy PASS (8 suites)
+
+### Files changed
+- src/ai/prompt-builder.js
+- scripts/test-ai-newbie-conversation.cjs
+- scripts/test-conversation-local.cjs
+- scripts/test-conversation-regression.cjs
+- scripts/test-lead-flow.cjs
+- scripts/test-sales-discovery.cjs
+- DEVLOG.md
+
+### Chưa làm / handoff
+- CEO retest live inbox; verify /health gitCommit sau deploy
+
+---
