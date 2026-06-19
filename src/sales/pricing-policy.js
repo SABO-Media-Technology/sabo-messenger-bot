@@ -66,6 +66,23 @@ function buildPricingHandoffReply(page, profile, sessionMeta) {
   const hasPhone = hasVerifiedPhone(profile);
   const seed = hashSeed(`${sessionMeta?.profileName || ""}:pricing-handoff`);
   const opener = pickOpener(address, seed);
+  const { getVerticalId } = require("../strategies/page-contracts");
+  const verticalId = getVerticalId(page);
+
+  if (verticalId === "ai-education") {
+    if (hasPhone) {
+      const lines = [
+        `${opener} Học phí và lộ trình khóa học tùy chương trình — team sẽ gửi chi tiết qua Zalo/SĐT anh/chị đã lưu nhé ạ.`,
+        `${opener} Em note rồi ạ — team liên hệ qua Zalo/SĐT để tư vấn khóa học và học phí cụ thể, không báo số chung trên chat.`,
+      ];
+      return lines[seed % lines.length];
+    }
+    const lines = [
+      `${opener} Học phí và lộ trình khóa học AI tùy chương trình — em chưa thể báo số chung trên chat. Cho em xin Zalo hoặc SĐT để team tư vấn chi tiết nhé ạ.`,
+      `${opener} Khóa học AI có nhiều hướng (cơ bản, nâng cao, team) — anh/chị cho em xin Zalo/SĐT, team sẽ gửi thông tin học phí qua Zalo nhé.`,
+    ];
+    return lines[seed % lines.length];
+  }
 
   if (hasPhone) {
     const lines = [

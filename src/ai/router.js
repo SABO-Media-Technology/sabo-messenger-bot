@@ -21,7 +21,7 @@ const {
   hydrateThread,
 } = require("../session/store");
 const { queueLeadEvent } = require("../leads/queue");
-const { mergeLeadProfile, refusesName, asksForOwnPhone, deniesGivingPhone, isFrustration, hasVerifiedPhone, clearFalsePhone } = require("../leads/extract");
+const { mergeLeadProfile, refusesName, asksForOwnPhone, deniesGivingPhone, isFrustration, hasVerifiedPhone, clearFalsePhone, isChurnIntent, isPageCorrectionIntent } = require("../leads/extract");
 const {
   buildLeadPromptBlock,
   isLeadComplete,
@@ -31,8 +31,8 @@ const {
 } = require("../leads/flow");
 const { getPageContract, getVerticalId } = require("../strategies/page-contracts");
 const { fetchMessengerProfile, deriveHonorific, buildHonorificAddress } = require("../facebook/profile");
-const { buildPostQualifyFallback, isCasualGreeting } = require("../leads/post-qualify-consult");
-const { detectSalesIntent, buildDiscoveryReply, buildScopeReply } = require("../sales/discovery");
+const { buildPostQualifyFallback, isCasualGreeting, buildChurnReply, buildPageCorrectionReply } = require("../leads/post-qualify-consult");
+const { detectSalesIntent, buildDiscoveryReply, buildScopeReply, buildPreferenceReply } = require("../sales/discovery");
 const {
   isPricingQuestion,
   isInPhoneCollectionFlow,
@@ -48,7 +48,18 @@ KIẾN THỨC THAM KHẢO (Brain RAG — ưu tiên nếu liên quan):
 ${ragContext}`;
 }
 
+function buildSalesIntentReply(page, sessionMeta, userText, intent) {
+  if (intent === "scope") return buildScopeReply(page, sessionMeta, userText, "web-lead");
+  if (intent === "preference") return buildPreferenceReply(page, sessionMeta, userText);
+  if (intent === "discovery") return buildDiscoveryReply(page, sessionMeta, userText);
+  return null;
+}
+
 function fallbackReply(page, profile, sessionMeta, userText = "") {
+  const salesIntent = detectSalesIntent(userText);
+  const salesReply = buildSalesIntentReply(page, sessionMeta, userText, salesIntent);
+  if (salesReply) return salesReply;
+
   if (profile && sessionMeta) {
     const contract = getPageContract(page);
     if (isPostQualify(profile, contract, sessionMeta)) {
@@ -96,21 +107,36 @@ async function ensureSessionProfile(page, senderId) {
   return getSessionMeta(page.id, senderId);
 }
 
-function buildPhoneRecallReply(profile, sessionMeta) {
+function buildPhoneRecallReply(page, profile, sessionMeta) {
   const address = buildHonorificAddress(sessionMeta);
+  const verticalId = getVerticalId(page);
   if (hasVerifiedPhone(profile)) {
     return `Dạ ${address}, em đang lưu SĐT ${profile.phone}. Anh/chị cần đổi số khác cứ nhắn em nhé!`;
+  }
+  if (verticalId === "ai-education") {
+    return `Dạ ${address}, em chưa lưu SĐT của anh/chị. Nếu anh/chị muốn nhận tư vấn khóa học hoặc tài liệu, cho em xin SĐT hoặc Zalo nhé ạ?`;
   }
   return `Dạ ${address}, em chưa lưu SĐT của anh/chị. Cho em xin SĐT hoặc Zalo để team SABO liên hệ báo giá nhé ạ?`;
 }
 
-function buildPhoneDenialReply(sessionMeta) {
+function buildPhoneDenialReply(page, sessionMeta) {
   const address = buildHonorificAddress(sessionMeta);
+  const verticalId = getVerticalId(page);
+  if (verticalId === "ai-education") {
+    return `Dạ em xin lỗi ${address} — em nhầm, em chưa có SĐT của anh/chị. Cho em xin SĐT hoặc Zalo nếu anh/chị muốn nhận tư vấn khóa học nhé ạ?`;
+  }
   return `Dạ em xin lỗi ${address} — em nhầm, em chưa có SĐT của anh/chị. Cho em xin SĐT hoặc Zalo để team liên hệ nhé ạ?`;
 }
 
-function buildFrustrationReply(profile, sessionMeta, userText) {
+function buildFrustrationReply(page, profile, sessionMeta, userText) {
   const address = buildHonorificAddress(sessionMeta);
+  const verticalId = getVerticalId(page);
+  if (verticalId === "ai-education") {
+    if (hasVerifiedPhone(profile)) {
+      return `Dạ em xin lỗi ${address} — để em trả lời cụ thể hơn. Anh/chị muốn em gợi lộ trình học AI, giải thích ChatGPT, hay team gửi tài liệu qua Zalo/SĐT ạ?`;
+    }
+    return `Dạ em xin lỗi ${address} — em chưa lưu SĐT nên chưa hỗ trợ sát được. Anh/chị muốn em gợi lộ trình học AI trước, hay cho em xin SĐT/Zalo để gửi tài liệu ạ?`;
+  }
   if (hasVerifiedPhone(profile)) {
     return `Dạ em xin lỗi ${address} — để em trả lời cụ thể hơn. Anh/chị muốn em gợi scope web, giải thích quy trình, hay team gửi báo giá qua Zalo/SĐT ạ?`;
   }
@@ -206,7 +232,7 @@ async function generateReply(page, senderId, userText) {
 
   // Phone recall — ground truth from profile
   if (asksForOwnPhone(text)) {
-    const phoneReply = buildPhoneRecallReply(profile, meta);
+    const phoneReply = buildPhoneRecallReply(page, profile, meta);
     recordReply(page, senderId, text, phoneReply);
     return { text: phoneReply, layer: "phone-recall" };
   }
@@ -215,14 +241,28 @@ async function generateReply(page, senderId, userText) {
   if (deniesGivingPhone(text)) {
     const cleared = { ...profile, phone: null, qualified: false, queued: false };
     setLeadProfile(page.id, senderId, cleared, page.projectSlug);
-    const denialReply = buildPhoneDenialReply(meta);
+    const denialReply = buildPhoneDenialReply(page, meta);
     recordReply(page, senderId, text, denialReply);
     return { text: denialReply, layer: "phone-denial" };
   }
 
+  // Churn / disinterest — polite close, no scope essay
+  if (isChurnIntent(text)) {
+    const churnReply = buildChurnReply(page, meta, text);
+    recordReply(page, senderId, text, churnReply);
+    return { text: churnReply, layer: "churn-close" };
+  }
+
+  // User corrects page vertical — acknowledge + pivot to page contract
+  if (isPageCorrectionIntent(text)) {
+    const correctionReply = buildPageCorrectionReply(page, meta, text);
+    recordReply(page, senderId, text, correctionReply);
+    return { text: correctionReply, layer: "page-correction" };
+  }
+
   // Frustration — apologize, offer concrete help
   if (isFrustration(text)) {
-    const frustrationReply = buildFrustrationReply(profile, meta, text);
+    const frustrationReply = buildFrustrationReply(page, profile, meta, text);
     recordReply(page, senderId, text, frustrationReply);
     return { text: frustrationReply, layer: "frustration-recovery" };
   }
@@ -245,6 +285,14 @@ async function generateReply(page, senderId, userText) {
     recordReply(page, senderId, text, scopeReply);
     maybeQueueLead(page, senderId, text, "sales-scope");
     return { text: scopeReply, layer: "sales-scope" };
+  }
+
+  // Vertical preference — e.g. "ưu tiên web thu lead" (no LLM needed)
+  if (salesIntent === "preference") {
+    const prefReply = buildPreferenceReply(page, meta, text);
+    recordReply(page, senderId, text, prefReply);
+    maybeQueueLead(page, senderId, text, "sales-preference");
+    return { text: prefReply, layer: "sales-preference" };
   }
 
   // Uyển Nhi greeting on first contact / get started
@@ -355,9 +403,10 @@ async function generateReply(page, senderId, userText) {
         senderId,
         reason: outputGuard.reason,
       });
-      reply = buildCustomerSafeSalesReply(page, postQualify ? "consult" : "intake");
-      replyVia = "safe";
-      layer = "customer-safe-output-blocked";
+      const intentFallback = buildSalesIntentReply(page, meta, text, detectSalesIntent(text));
+      reply = intentFallback || buildCustomerSafeSalesReply(page, postQualify ? "consult" : "intake");
+      replyVia = intentFallback ? "sales-fallback" : "safe";
+      layer = intentFallback ? `sales-intent-${detectSalesIntent(text)}` : "customer-safe-output-blocked";
     }
 
     recordReply(page, senderId, text, reply);

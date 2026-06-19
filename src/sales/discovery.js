@@ -25,16 +25,29 @@ const SCOPE_PATTERNS = [
   /gợi\s*scope|cho\s*scope|scope\s*(đi|web|luôn|nhé)|đề\s*xuất\s*scope/i,
 ];
 
+/** Follow-up after discovery — vertical preference without explicit scope ask */
+const PREFERENCE_PATTERNS = [
+  /ưu\s*tiên\s+(web|website|landing|app|bot|automation|chatbot)/i,
+  /(web|website|landing)\s+thu\s+lead/i,
+  /\bthu\s+lead\b/i,
+  /làm\s+(web|website|landing|app)\b/i,
+  /cần\s+(web|website|landing|app|bot)\b/i,
+  /muốn\s+(web|website|landing|app|bot)\b/i,
+  /\bapp\s+quản lý\b/i,
+  /bot\s+(trả lời|inbox|messenger|chat)/i,
+  /automation|chatbot|tự động\s+hóa/i,
+];
+
 const OBJECTION_PATTERNS = [
   /(đắt|mắc|tốn|không tin|scam|lừa|uy tín|review|đánh giá)/i,
-  /(nghĩ lại|chưa chắc| không cần| thôi| bỏ)/i,
+  /(nghĩ lại|chưa chắc)/i,
 ];
 
 const GREETING_ONLY =
   /^(xin chào|chào|hello|hi|hey|alo|dạ|shop ơi)\b/i;
 
 /**
- * @returns {'discovery'|'pricing'|'scope'|'greeting'|'objection'|null}
+ * @returns {'discovery'|'pricing'|'scope'|'preference'|'greeting'|'objection'|null}
  */
 function detectSalesIntent(text) {
   const t = (text || "").trim();
@@ -43,8 +56,16 @@ function detectSalesIntent(text) {
   if (isPricingQuestion(t)) return "pricing";
   if (OBJECTION_PATTERNS.some((re) => re.test(t))) return "objection";
   if (SCOPE_PATTERNS.some((re) => re.test(t))) return "scope";
+  if (PREFERENCE_PATTERNS.some((re) => re.test(t))) return "preference";
   if (DISCOVERY_PATTERNS.some((re) => re.test(t))) return "discovery";
   return null;
+}
+
+function detectPreferenceScopeType(text) {
+  const t = (text || "").toLowerCase();
+  if (/app|mobile|ứng dụng|quản lý/i.test(t)) return "app";
+  if (/bot|chatbot|inbox|automation|messenger|tự động/i.test(t)) return "automation";
+  return "web-lead";
 }
 
 function isDiscoveryQuestion(text) {
@@ -101,12 +122,46 @@ function buildDiscoveryReply(page, sessionMeta, userText = "") {
   return lines[seed % lines.length];
 }
 
+/** Ack vertical preference — concrete next step without invented prices */
+function buildPreferenceReply(page, sessionMeta, userText = "") {
+  const address = buildHonorificAddress(sessionMeta);
+  const seed = hashSeed(`${sessionMeta?.profileName || ""}:${userText}:preference`);
+  const opener = pickOpener(address, seed);
+  const kind = detectPreferenceScopeType(userText);
+
+  if (kind === "app") {
+    const lines = [
+      `${opener} App quản lý em hay gợi pilot 4–6 tuần: luồng lõi (đặt hàng, khách, báo cáo), Flutter + Supabase — mở rộng sau khi chạy ổn. Anh/chị muốn em gợi scope tính năng hay xin Zalo/SĐT để team tư vấn sát hơn ạ?`,
+      `${opener} Với app SME, em thường chốt vài tính năng must-have trước (khách, đơn, thông báo) rồi iterate — timeline ballpark 4–8 tuần tùy scope. Anh/chị ưu tiên quản khách hay vận hành nội bộ trước ạ?`,
+    ];
+    return lines[seed % lines.length];
+  }
+
+  if (kind === "automation") {
+    const lines = [
+      `${opener} Bot inbox em hay gợi: trả lời FAQ + thu SĐT/Zalo, handoff khi cần người — gắn Messenger/Zalo tuỳ kênh. Anh/chị muốn em gợi scope bot hay xin contact để team demo ạ?`,
+      `${opener} Automation inbox giúp trả lời nhanh 24/7 và gom lead — thường đi kèm web hoặc landing thu form. Anh/chị đang inbox nhiều ở Facebook hay Zalo ạ?`,
+    ];
+    return lines[seed % lines.length];
+  }
+
+  return buildScopeReply(page, sessionMeta, userText, "web-lead");
+}
+
 /** Concrete scope deliverables — web-lead default for SABO M&T */
 function buildScopeReply(page, sessionMeta, userText = "", scopeType = "web-lead") {
   const address = buildHonorificAddress(sessionMeta);
   const seed = hashSeed(`${sessionMeta?.profileName || ""}:${userText}:scope`);
   const opener = pickOpener(address, seed);
   const verticalId = getVerticalId(page);
+
+  if (verticalId === "ai-education") {
+    const lines = [
+      `${opener} Lộ trình học AI cơ bản thường gồm: làm quen ChatGPT → viết prompt thực chiến → tạo ảnh AI & workflow cho công việc. Anh/chị muốn bắt đầu từ phần nào ạ?`,
+      `${opener} Em hay gợi khóa học AI Newbie: nền tảng ChatGPT, prompt, ứng dụng hàng ngày — phù hợp người mới. Anh/chị học cho bản thân hay cho team ạ?`,
+    ];
+    return lines[seed % lines.length];
+  }
 
   if (scopeType === "web-lead" || verticalId === "sabo-mt-services") {
     const lines = [
@@ -136,10 +191,13 @@ SALES DISCOVERY (câu hỏi mở — "dịch vụ gì", "làm gì được", "c�
 
 module.exports = {
   detectSalesIntent,
+  detectPreferenceScopeType,
   isDiscoveryQuestion,
   buildDiscoveryReply,
+  buildPreferenceReply,
   buildScopeReply,
   buildSalesDiscoveryPromptBlock,
   DISCOVERY_PATTERNS,
   SCOPE_PATTERNS,
+  PREFERENCE_PATTERNS,
 };

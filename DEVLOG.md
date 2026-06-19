@@ -1,3 +1,53 @@
+## [2026-06-19] AI Newbie VN regression — churn / phone-recall / page-correction
+
+### Đã làm
+- Root cause: `isNeedPivot` match `không làm nữa` → false "đổi sang" + SME scope loop; `asksForOwnPhone` không match "bạn có số dt ... chưa?"
+- Intent mới: `isChurnIntent`, `isPageCorrectionIntent` trong `extract.js` — router xử lý trước LLM/fallback
+- Vertical-aware: phone-recall, frustration, pricing-handoff, consultSnippet, scope reply cho `ai-education`
+- Gỡ `không làm nữa` khỏi need-pivot; không lưu need từ churn message
+- `scripts/test-ai-newbie-conversation.cjs` — replay 4 câu CEO trên page `569671719553461`; thêm vào `test:predeploy`
+
+### Files changed
+- src/leads/extract.js
+- src/ai/router.js
+- src/leads/post-qualify-consult.js
+- src/sales/discovery.js
+- src/sales/pricing-policy.js
+- scripts/test-ai-newbie-conversation.cjs (new)
+- package.json
+- DEVLOG.md
+
+### Chưa làm / handoff
+- CEO retest live inbox AI Newbie VN sau deploy Render
+- Verify: `npm run test:ai-newbie-conversation` → 4/4 pass
+
+---
+
+
+### Đã làm
+- Audit docs: `MESSENGER_BOT_REFERENCE.md`, `DEVLOG.md`, `README.md`, `AGENTS.md`, `.env.example`
+- Tạo `docs/HANDOFF.md` — SSoT ngắn cho agent tiếp quản (purpose, architecture, prod commit, env, ops rules, policies, test gate, deploy, failures, file map, CEO checklist, pending)
+- Link HANDOFF từ `MESSENGER_BOT_REFERENCE.md` (top), `AGENTS.md`, `README.md`
+- Tạo `_DOCS/LSSYSTEMS_BOT_HANDOFF_2026-06-19.md` — tóm tắt audit spam @lssystems_bot (audit c0866dbb)
+- § Related trong HANDOFF → link LSSYSTEMS bot doc
+
+### Files changed
+- docs/HANDOFF.md (new)
+- docs/MESSENGER_BOT_REFERENCE.md
+- AGENTS.md
+- README.md
+- DEVLOG.md
+- (monorepo) `_DOCS/LSSYSTEMS_BOT_HANDOFF_2026-06-19.md` (new)
+
+### Chưa làm / handoff
+- Agent khác: đồng bộ § INBOX_POLLER trong REFERENCE.md (vẫn stale "true prod") — HANDOFF ghi đúng OFF
+- Official price list SSoT → wire vào bot khi CEO chốt catalog
+- Hermes tunnel prod, LLM fail graceful ack (xem HANDOFF § Pending)
+- CEO: `pm2 stop self-heal` + single host monitor theo ACTIVE-MODE (xem LSSYSTEMS handoff)
+- Agent P0: dedupe `self-heal.js` + `fleet_health_check.py`
+
+---
+
 ## [2026-06-19] Pricing policy — no invented VND on Messenger
 
 ### Đã làm
@@ -997,3 +1047,6 @@ pm run test:hermes OK page 332950393234346; Groq API ping OK.
 
 ## [2026-06-18] Ship false SĐT + scope (3337d60)
 - Push main OK (schannel); deploy:render live; prod /health gitCommit 3337d60; test-conversation-local post-deploy PASS.
+
+## [2026-06-19] Pricing handoff (30cb5ca)
+- Push main OK (schannel, cleared bad GITHUB_TOKEN); deploy:render live dep-d8qdj2e8bjmc738k5ceg; prod /health gitCommit 30cb5ca; test:predeploy PASS.

@@ -9,6 +9,7 @@
 
 
 const { buildHonorificAddress } = require("../facebook/profile");
+const { getPageContract, getVerticalId } = require("../strategies/page-contracts");
 
 const {
 
@@ -17,6 +18,8 @@ const {
   extractNeedUpdate,
 
   isNeedPivot,
+  isChurnIntent,
+  isPageCorrectionIntent,
 
 } = require("./extract");
 
@@ -100,10 +103,19 @@ function messageMentionsApp(text) {
   return /app|mobile|ứng dụng/i.test(text || "");
 }
 
-function consultSnippet(need, seed = 0, userText = "", hasPhone = false) {
+function consultSnippet(need, seed = 0, userText = "", hasPhone = false, verticalId = "sabo-mt-services") {
 
   const n = (need || "").toLowerCase();
   const text = (userText || "").toLowerCase();
+
+  if (verticalId === "ai-education") {
+    const tips = [
+      "AI Newbie VN tập trung học AI cơ bản — ChatGPT, prompt, workflow và tạo ảnh AI cho người mới.",
+      "Em hay gợi lộ trình: làm quen ChatGPT → prompt thực chiến → ứng dụng vào công việc hàng ngày.",
+      "Anh/chị muốn học cho bản thân hay build cho team — em gợi chủ đề phù hợp trước ạ.",
+    ];
+    return tips[seed % tips.length];
+  }
 
   if (/app|mobile|ứng dụng/i.test(n) && messageMentionsApp(text)) {
 
@@ -149,6 +161,43 @@ function consultSnippet(need, seed = 0, userText = "", hasPhone = false) {
 }
 
 
+
+function buildChurnReply(page, sessionMeta, userText = "") {
+  const address = buildHonorificAddress(sessionMeta);
+  const seed = hashSeed(`${sessionMeta?.profileName || ""}:${userText}:churn`);
+  const verticalId = getVerticalId(page);
+
+  if (verticalId === "ai-education") {
+    const lines = [
+      `Dạ em hiểu ${address} ạ. Cứ để đó — khi anh/chị muốn học AI hay cần tài liệu, nhắn em bất cứ lúc nào nhé. Chúc anh/chị một ngày tốt lành!`,
+      `Dạ vâng ${address}! Em không làm phiền thêm. Khi nào anh/chị quan tâm khóa học AI, cứ nhắn em ạ.`,
+    ];
+    return lines[seed % lines.length];
+  }
+
+  const lines = [
+    `Dạ em hiểu ${address} ạ. Cứ để đó — khi anh/chị cần tư vấn thêm, nhắn em bất cứ lúc nào nhé.`,
+    `Dạ vâng ${address}! Em không làm phiền thêm. Chúc anh/chị một ngày tốt lành!`,
+  ];
+  return lines[seed % lines.length];
+}
+
+function buildPageCorrectionReply(page, sessionMeta, userText = "") {
+  const address = buildHonorificAddress(sessionMeta);
+  const seed = hashSeed(`${sessionMeta?.profileName || ""}:${userText}:page-correction`);
+  const verticalId = getVerticalId(page);
+  const contract = getPageContract(page);
+
+  if (verticalId === "ai-education") {
+    const lines = [
+      `Dạ đúng rồi ${address}! AI Newbie VN tập trung học AI từ cơ bản — em hay gợi ChatGPT, prompt, workflow và tạo ảnh AI. Anh/chị muốn em gợi lộ trình học hay chủ đề nào trước ạ?`,
+      `Dạ em xin lỗi nếu lúc nãy em lệch chủ đề ${address}. Đây là cộng đồng học AI — anh/chị đang muốn bắt đầu từ đâu (ChatGPT, ảnh AI, hay ứng dụng công việc) ạ?`,
+    ];
+    return lines[seed % lines.length];
+  }
+
+  return `${address}, em ghi nhận — em sẽ trả lời đúng theo ${contract.goal.split(".")[0].toLowerCase()}. Anh/chị muốn em hỗ trợ phần nào trước ạ?`;
+}
 
 function buildCasualReply(address, text, seed) {
 
@@ -206,8 +255,15 @@ function buildPostQualifyFallback(page, profile, sessionMeta, userText) {
 
   const hasPhone = hasVerifiedPhone(profile);
   const handoff = handoffLine(hasPhone);
+  const verticalId = getVerticalId(page);
 
+  if (isChurnIntent(text)) {
+    return buildChurnReply(page, sessionMeta, text);
+  }
 
+  if (isPageCorrectionIntent(text)) {
+    return buildPageCorrectionReply(page, sessionMeta, text);
+  }
 
   const casual = buildCasualReply(address, text, seed);
 
@@ -231,7 +287,7 @@ function buildPostQualifyFallback(page, profile, sessionMeta, userText) {
 
   if (looksLikeConsultationQuestion(text) || /tư vấn|giải thích|như thế nào|là gì/i.test(text)) {
 
-    const tip = consultSnippet(need, seed, text, hasPhone);
+    const tip = consultSnippet(need, seed, text, hasPhone, verticalId);
 
     const lines = hasPhone
       ? [
@@ -253,17 +309,17 @@ function buildPostQualifyFallback(page, profile, sessionMeta, userText) {
 
     const updated = extractNeedUpdate(text, need) || text.slice(0, 80);
 
-    const tip = consultSnippet(updated, seed, text, hasPhone);
+    const tip = consultSnippet(updated, seed, text, hasPhone, verticalId);
 
     return hasPhone
-      ? `${opener} Em ghi nhận anh/chị muốn đổi sang ${updated.slice(0, 80)}. ${tip} Team sẽ cập nhật hồ sơ và liên hệ báo giá qua SĐT đã lưu ạ!`
+      ? `${opener} Em ghi nhận anh/chị muốn đổi sang ${updated.slice(0, 80)}. ${tip} Team sẽ liên hệ qua SĐT đã lưu ạ!`
       : `${opener} Em ghi nhận anh/chị muốn đổi sang ${updated.slice(0, 80)}. ${tip} ${handoff}`;
 
   }
 
 
 
-  const tip = consultSnippet(need, seed, text, hasPhone);
+  const tip = consultSnippet(need, seed, text, hasPhone, verticalId);
 
   const relates = messageRelatesToNeed(text, need);
 
@@ -308,6 +364,10 @@ module.exports = {
   buildPostQualifyPricingHint,
 
   consultSnippet,
+
+  buildChurnReply,
+
+  buildPageCorrectionReply,
 
 };
 

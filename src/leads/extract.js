@@ -23,10 +23,16 @@ function normalizePhone(phone) {
 }
 
 const ASK_OWN_PHONE_RE =
-  /số\s*(điện\s*thoại|dt|phone).*(của\s*(tôi|em|mình)|tôi|em|mình)\s*(là\s*)?(gì|bao nhiêu|đâu)|(?:tôi|em|mình)\s*(đã\s*)?(cho|gửi|đưa).*(số|sdt|zalo).*(chưa|đâu|gì)/i;
+  /số\s*(điện\s*thoại|dt|phone).*(của\s*(tôi|em|mình)|tôi|em|mình)\s*(là\s*)?(gì|bao nhiêu|đâu|chưa)|(?:tôi|em|mình)\s*(đã\s*)?(cho|gửi|đưa).*(số|sdt|zalo).*(chưa|đâu|gì)|(?:mày|bạn|em)\s*(có|lưu|biết).*(số|sdt).*(?:của\s*(?:tôi|em|mình))?\s*(?:chưa|đâu|gì)?/i;
 
 const DENY_PHONE_RE =
   /(?:tao|tôi|em|mình)\s*(đã\s*)?(gửi|cho|đưa|nói).*(số|sdt|zalo|điện\s*thoại).*(đâu|chưa|gì)|chưa\s*(cho|gửi|đưa).*(số|sdt)|(?:mày|bạn|em)\s*(có|lưu|biết).*(số|sdt).*(đâu|gì)|(?:sao|tại sao).*(nói|bảo).*(đã\s*có|đã\s*lưu).*(số|sdt)/i;
+
+const CHURN_RE =
+  /(?:^|\s)(?:tôi|em|mình|tao)?\s*(?:không\s*(?:làm|muốn|cần)\s*(?:nữa|đâu)|thôi(?:\s+(?:đi|nhé|vậy|em))?|bỏ\s*(?:đi|luôn|nha|nhé)?|không\s*cần(?:\s+nữa)?|đừng\s*(?:hỏi|làm phiền)|nghỉ\s*(?:đi|thôi)|cancel|hủy(?:\s+luôn)?)(?:\s|$|[.!?])/i;
+
+const PAGE_CORRECTION_RE =
+  /(?:page|trang|fanpage|kênh)\s*(?:của\s*)?(?:bạn|em|shop|page)\s*(?:là|về|focus|tập trung).*(?:khóa\s*học|học\s*ai|ai\s*newbie|ainewbie|cộng\s*đồng\s*ai)|(?:nhưng\s*(?:mà|nha|nhé)?|mà)\s*(?:page|trang).*(?:khóa\s*học|học\s*ai|về\s*ai)|(?:đây|này)\s*(?:là|về)\s*(?:khóa\s*học|học\s*ai|trang\s*học)/i;
 
 const FRUSTRATION_RE =
   /(?:m\s*|mày|bạn)\s*(có\s*)?trả lời\s*(được\s*)?(gì|không)|vô dụng|không\s*hiểu\s*gì|nói\s*hoài|lặp\s*hoài|chán\s*quá/i;
@@ -41,6 +47,14 @@ function deniesGivingPhone(text) {
 
 function isFrustration(text) {
   return FRUSTRATION_RE.test(text || "");
+}
+
+function isChurnIntent(text) {
+  return CHURN_RE.test(text || "");
+}
+
+function isPageCorrectionIntent(text) {
+  return PAGE_CORRECTION_RE.test(text || "");
 }
 
 const NAME_PATTERNS = [
@@ -159,11 +173,12 @@ function looksLikeNeedSignal(text) {
 }
 
 const NEED_PIVOT_RE =
-  /giờ|thay vì|chuyển sang|đổi sang|lại thích|muốn làm|thích làm|không làm.*nữa|bỏ.*làm/i;
+  /giờ|thay vì|chuyển sang|đổi sang|lại thích|muốn làm|thích làm/i;
 
 function isNeedPivot(text) {
   const t = (text || "").trim();
   if (!t) return false;
+  if (isChurnIntent(t)) return false;
   return NEED_PIVOT_RE.test(t) || (/app|website|web|trang|landing/i.test(t) && t.length >= 8);
 }
 
@@ -188,6 +203,7 @@ function extractNeed(text, existingNeed) {
   if (pivot) return pivot;
   if (existingNeed) return null;
   const t = (text || "").trim();
+  if (isChurnIntent(t)) return null;
   if (looksLikeConsultationQuestion(t)) return null;
   if (looksLikeNeed(t) && t.length >= 6) {
     return t.slice(0, 300);
@@ -260,7 +276,13 @@ function mergeLeadProfile(profile, text) {
   const budget = extractBudget(text);
   if (budget && !next.budget) next.budget = budget;
 
-  if (!next.need && text.trim().length >= 6 && looksLikeNeed(text) && !looksLikeConsultationQuestion(text)) {
+  if (
+    !next.need &&
+    text.trim().length >= 6 &&
+    looksLikeNeed(text) &&
+    !looksLikeConsultationQuestion(text) &&
+    !isChurnIntent(text)
+  ) {
     next.need = text.trim().slice(0, 300);
   }
 
@@ -307,4 +329,6 @@ module.exports = {
   looksLikeConsultationQuestion,
   extractNeedUpdate,
   isNeedPivot,
+  isChurnIntent,
+  isPageCorrectionIntent,
 };
