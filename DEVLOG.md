@@ -1121,8 +1121,9 @@ pm run test:hermes OK page 332950393234346; Groq API ping OK.
 - Reset main → d99ca89; drop 11da26b/8da57b7 sales-handler restore
 - VERTICAL_BEHAVIOR trong prompt-builder.js thay sales-scope/preference/discovery/frustration-recovery handlers
 - Router 261 lines: customer-safe-in → phone-recall → pricing-handoff → greeting (turn 1) → LLM → customer-safe-out + lead queue
-- 
-pm run test:predeploy PASS (8 suites)
+- `npm run test:predeploy` PASS (8 suites)
+- Push: `e53596f` + `2600355` (DEVLOG); force-push dropped `11da26b`/`8da57b7`
+- Prod `/health` → `gitCommit=2600355e0cb1da24ede5a41150c2adf259a689d4` ✅
 
 ### Files changed
 - src/ai/prompt-builder.js
@@ -1134,6 +1135,6 @@ pm run test:predeploy PASS (8 suites)
 - DEVLOG.md
 
 ### Chưa làm / handoff
-- CEO retest live inbox; verify /health gitCommit sau deploy
+- CEO retest live inbox SABO M&T + AI Newbie (discovery/scope via LLM + VERTICAL_BEHAVIOR)
 
 ---
