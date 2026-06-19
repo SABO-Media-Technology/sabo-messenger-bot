@@ -1,14 +1,13 @@
 
-## [2026-06-19] Thin bot router — prompt-first, minimal rules
+## [2026-06-19] Thin bot router — SHIPPED (5ff3e08)
 
 ### Đã làm
-- **Router:** `src/ai/router.js` 461 → **261 lines** (~43% giảm). Pipeline: `safe-in → phone-recall → pricing-handoff → greeting (turn 1) → LLM(prompt+history) → safe-out`; Hermes chỉ khi `HERMES_ENABLED=true`
-- **Layers:** ~16 intent/handler layers → **7** (`customer-safe-*`, `phone-recall`, `pricing-handoff`, `greeting`, `llm*`, `fallback-*`, `human-handoff`)
-- **Mới:** `src/ai/prompt-builder.js` — `buildSystemPrompt()` gộp persona Uyển Nhi + vertical + lead state + churn/page-correction/frustration/scope/discovery rules vào system prompt
-- **Bypass (không xóa file):** post-qualify-consult essay, sales-discovery/preference/scope/churn-close/page-correction handlers — behavior chuyển sang prompt + LLM
-- **Giữ deterministic:** pricing-handoff, phone-recall (đọc DB thật), customer-safe
-- Tests cập nhật: `test-ai-newbie-conversation`, `test-conversation-regression`, `test-lead-flow`, `test-sales-discovery`, `test-conversation-local` (new)
-- `npm run test:predeploy` — **PASS** (8 suites)
+- **Router:** `src/ai/router.js` **460 → 295 lines** (~36% giảm). Pipeline CEO: `safe-in → pricing-handoff → phone-recall → (greeting turn 1 / sales scope|pref|discovery) → LLM(prompt+history) → safe-out`
+- **Mới:** `src/ai/prompt-builder.js` (102 lines) — `buildSystemPrompt()` + `THIN_BEHAVIOR_RULES` (churn, page-correction, frustration, scope, discovery trong prompt)
+- **Layers:** intent handlers cũ bypass → behavior qua prompt + LLM; giữ deterministic: pricing, phone-recall, customer-safe
+- **Tests:** `npm run test:predeploy` **PASS** (8 suites); fix assertion layer `:llm` suffix trong `test-ai-newbie-conversation.cjs`
+- **Push:** `git -c http.sslBackend=schannel push origin main` → `5ff3e08`
+- **Prod health:** `https://sabo-messenger-bot.onrender.com/health` → `gitCommit=5ff3e08` (Render auto-deploy ~1 phút)
 
 ### Files changed
 - src/ai/router.js
@@ -21,12 +20,12 @@
 - DEVLOG.md
 
 ### Chưa làm / handoff
-- **Push:** `git push origin main` FAIL — SSL + invalid token (2026-06-19). Commit local: `f7606b5`
-- `npm run deploy:render` sau khi push
-- CEO retest live inbox sau deploy
-- Có thể xóa `scripts/_patch-router.cjs` (patch router cũ — không commit)
+- CEO retest live inbox AI Newbie VN (churn / phone-recall / page-correction qua LLM prompt)
+- Có thể xóa `scripts/_patch-router.cjs` (patch cũ, untracked)
 
 ---
+
+## [2026-06-19] Thin bot router — prompt-first, minimal rules (WIP → superseded by SHIPPED entry above)
 
 
 ### Da lam
