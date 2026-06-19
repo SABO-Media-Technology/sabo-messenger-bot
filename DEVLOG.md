@@ -1,4 +1,21 @@
 
+## [2026-06-19] OSS simple pattern — prompt-first webhook bot
+
+### Đã làm
+- **Chuyển FROM layered router TO OSS simple pattern** (meta-ai-chatbot + Messenger tutorial + vercel/chatbot `buildSystemPrompt()`)
+- **`src/ai/router.js`:** ~369 → **250 lines** — safe → phone-recall → pricing → greeting → LLM once → persist
+- **Gỡ main path:** sales-discovery/scope/preference, frustration-recovery, churn-close, page-correction, Hermes prod, post-qualify essay, template sau turn 1
+- **Behavior** → `prompt-builder.js` per-page blocks
+- **Tests:** `npm run test:predeploy` PASS (8 suites)
+
+### Files changed
+- src/ai/router.js, src/ai/prompt-builder.js, scripts/test-*.cjs, scripts/install-oss-router.cjs
+
+### Chưa làm / handoff
+- CEO retest live inbox; verify `/health` gitCommit sau deploy
+
+---
+
 ## [2026-06-19] Thin bot router — SHIPPED (5ff3e08)
 
 ### Đã làm
