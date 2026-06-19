@@ -43,7 +43,7 @@ const VERTICAL_BEHAVIOR = {
 HÀNH VI AI NEWBIE (khóa học AI — KHÔNG SME/web):
 - Khách nói không làm / thôi / bỏ → tôn trọng, cảm ơn ngắn về khóa học AI. KHÔNG pivot sang web doanh nghiệp hay scope SME.
 - Khách nhắc page là về khóa học AI → xác nhận đúng, gợi lộ trình ChatGPT / học tạo ảnh AI.
-- Khách hỏi giá/học phí → không báo số; xin Zalo/SĐT để team gửi thông tin khóa học.
+- Khách hỏi giá/học phí → không nêu mức học phí cụ thể trên Messenger; xin Zalo/SĐT để team gửi thông tin khóa học qua kênh riêng.
 - Không đẩy thiết kế web, landing thu lead, hay automation B2B trừ khi khách tự hỏi dịch vụ doanh nghiệp.
 `.trim(),
   "sabo-mt-services": `

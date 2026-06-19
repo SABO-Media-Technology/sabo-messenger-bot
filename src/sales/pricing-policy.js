@@ -73,12 +73,12 @@ function buildPricingHandoffReply(page, profile, sessionMeta) {
     if (hasPhone) {
       const lines = [
         `${opener} Học phí và lộ trình khóa học tùy chương trình — team sẽ gửi chi tiết qua Zalo/SĐT anh/chị đã lưu nhé ạ.`,
-        `${opener} Em note rồi ạ — team liên hệ qua Zalo/SĐT để tư vấn khóa học và học phí cụ thể, không báo số chung trên chat.`,
+        `${opener} Em note rồi ạ — team sẽ liên hệ qua Zalo/SĐT để tư vấn khóa học và học phí chi tiết cho anh/chị nhé ạ.`,
       ];
       return lines[seed % lines.length];
     }
     const lines = [
-      `${opener} Học phí và lộ trình khóa học AI tùy chương trình — em chưa thể báo số chung trên chat. Cho em xin Zalo hoặc SĐT để team tư vấn chi tiết nhé ạ.`,
+      `${opener} Học phí và lộ trình khóa học AI tùy chương trình — em không báo mức học phí cụ thể trên Messenger. Cho em xin Zalo hoặc SĐT để team tư vấn chi tiết nhé ạ.`,
       `${opener} Khóa học AI có nhiều hướng (cơ bản, nâng cao, team) — anh/chị cho em xin Zalo/SĐT, team sẽ gửi thông tin học phí qua Zalo nhé.`,
     ];
     return lines[seed % lines.length];
@@ -87,13 +87,13 @@ function buildPricingHandoffReply(page, profile, sessionMeta) {
   if (hasPhone) {
     const lines = [
       `${opener} Giá phụ thuộc scope cụ thể — team SABO sẽ gửi báo giá chi tiết qua Zalo/SĐT anh/chị đã lưu nhé ạ.`,
-      `${opener} Em note rồi ạ — team liên hệ qua Zalo/SĐT để gửi báo giá chính thức, không báo số chung trên chat.`,
+      `${opener} Em note rồi ạ — team sẽ liên hệ qua Zalo/SĐT để gửi báo giá chính thức cho anh/chị nhé ạ.`,
     ];
     return lines[seed % lines.length];
   }
 
   const lines = [
-    `${opener} Giá phụ thuộc scope và nhu cầu cụ thể — em chưa thể báo số chung trên chat. Cho em xin Zalo hoặc SĐT để team gửi báo giá chi tiết nhé ạ.`,
+    `${opener} Giá phụ thuộc scope và nhu cầu cụ thể — em không gửi mức giá cụ thể trên Messenger. Cho em xin Zalo hoặc SĐT để team gửi báo giá chi tiết nhé ạ.`,
     `${opener} Báo giá chính xác cần team xem scope trước ạ. Anh/chị cho em xin Zalo/SĐT, team sẽ gửi báo giá chi tiết qua Zalo nhé.`,
   ];
   return lines[seed % lines.length];

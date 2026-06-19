@@ -1,4 +1,37 @@
 
+## [2026-06-19] Fix awkward pricing handoff copy — "không báo số chung trên chat"
+
+### Đã làm
+- Gỡ jargon nội bộ **"không báo số chung trên chat"** khỏi template `buildPricingHandoffReply` (4 variants).
+- Làm mềm LLM instructions trong `prompt-builder.js` + `uyen-nhi-soul.js` — hướng dẫn hành vi, không literal phrase model có thể copy.
+- `npm run test:predeploy`: PASS (8 suites).
+
+### Files changed
+- src/sales/pricing-policy.js
+- src/ai/prompt-builder.js
+- src/personas/uyen-nhi-soul.js
+- DEVLOG.md
+
+### Chưa làm / handoff
+- CEO retest live inbox AI Newbie — hỏi học phí, verify không còn "số chung".
+
+---
+
+### Đã làm
+- **CEO chọn Lane B** (`e53596f` refactor: OSS pure — LLM-first, không sales-scope/discovery/frustration handler layers) thay Lane A (`8da57b7` sales layers).
+- **`npm run test:predeploy`:** PASS (8 suites) trên `e53596f`.
+- **Push:** `git push --force-with-lease=refs/heads/main:<remote-tip> origin e53596f:main` (cần vì `main` trên origin có doc commits / Lane A; lease cập nhật sau `fetch`; `GITHUB_TOKEN` invalid đã clear để dùng gh keyring; `http.sslVerify=false` cho fetch/push trên Windows).
+- **Prod:** `curl --ssl-no-revoke https://sabo-messenger-bot.onrender.com/health` → `gitCommit=e53596f1f8ebade9144577fca179718bdab05386`.
+- **Deploy:** `npm run deploy:render` (RENDER_API_KEY từ `D:\0.PROJECTS\.env.secrets`) — deploy `dep-d8qeo0m8bjmc738lauog` **live** sau auto-deploy chậm.
+
+### Files changed
+- DEVLOG.md
+
+### Chưa làm / handoff
+- CEO retest live inbox SABO M&T + AI Newbie (LLM-first, không sales-discovery layer).
+- Không re-add sales-scope/discovery/frustration handlers.
+
+---
 ## [2026-06-19] OSS simple pattern — prompt-first webhook bot
 
 ### Đã làm
@@ -1138,3 +1171,7 @@ pm run test:hermes OK page 332950393234346; Groq API ping OK.
 - CEO retest live inbox SABO M&T + AI Newbie (discovery/scope via LLM + VERTICAL_BEHAVIOR)
 
 ---
+
+## [2026-06-19] Prod drift fix (Lane B) — Render deploy origin/main d2c9208
+- Prod /health gitCommit 29d468d → d2c9208 (dep-d8qen0i8qa3s73c6p840 live); aligned with origin/main + e53596f lineage.
+
