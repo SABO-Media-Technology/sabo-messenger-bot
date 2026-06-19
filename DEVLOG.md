@@ -5,6 +5,8 @@
 - Gỡ jargon nội bộ **"không báo số chung trên chat"** khỏi template `buildPricingHandoffReply` (4 variants).
 - Làm mềm LLM instructions trong `prompt-builder.js` + `uyen-nhi-soul.js` — hướng dẫn hành vi, không literal phrase model có thể copy.
 - `npm run test:predeploy`: PASS (8 suites).
+- **Push:** `55fda0f` → `origin/main` (gh keyring `longsangsabo2025`).
+- **Prod:** `/health` → `gitCommit=55fda0f95feae6332656bedb57886ae51ffb14bc` (deploy live).
 
 ### Files changed
 - src/sales/pricing-policy.js
