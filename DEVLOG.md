@@ -1,4 +1,31 @@
 
+## [2026-06-19] Fix services question regression — fallback re-asking SĐT when phone known
+
+### Đã làm
+- **Root cause:** Lane B bỏ `sales-discovery` handler → câu "bên bạn có những dịch vụ gì" đi LLM; Groq 429/OpenAI 401 → `fallback-error` / `fallback-no-llm` trả `DEFAULT_REPLY` (`greeting.js`) hỏi lại SĐT/email dù profile đã có phone.
+- **`fallbackReply()`** context-aware: `detectServicesQuestion` → `buildDiscoveryReply`; `hasVerifiedPhone` → không hỏi SĐT, dùng `buildPostQualifyFallback` hoặc ack "Team SABO đã có SĐT".
+- **Pre-LLM rule** trong `router.js`: `detectServicesQuestion` → layer `sales-discovery` (deterministic, không phụ thuộc LLM).
+- Mở rộng `DISCOVERY_PATTERNS` cho "bên bạn" + "những dịch vụ gì".
+- Tests: `test-conversation-regression` (phone + services + LLM stub fail), cập nhật `test-sales-discovery` / `test-lead-flow` / `test-conversation-local`.
+- **`npm run test:predeploy`:** PASS (8 suites).
+- **Push:** `c261dc6` → `origin/main` (gh keyring `longsangsabo2025`, `http.sslBackend=schannel`).
+- **Prod:** `/health` → `gitCommit=c261dc671580cb27ef7fda4c19337a3ea7ff59b3` (Render auto-deploy sau push).
+
+### Files changed
+- src/ai/router.js
+- src/sales/discovery.js
+- scripts/test-conversation-regression.cjs
+- scripts/test-conversation-local.cjs
+- scripts/test-lead-flow.cjs
+- scripts/test-sales-discovery.cjs
+- DEVLOG.md
+
+### Chưa làm / handoff
+- CEO retest live: Turn 1 pricing handoff → Turn 2 "bên bạn có những dịch vụ gì" — phải list 2–3 dịch vụ, không hỏi SĐT.
+- `npm run deploy:render` fail (RENDER_SERVICE_ID lookup) — auto-deploy GitHub đủ; fix RENDER_API_KEY nếu cần manual env push.
+
+---
+
 ## [2026-06-19] Fix awkward pricing handoff copy — "không báo số chung trên chat"
 
 ### Đã làm
