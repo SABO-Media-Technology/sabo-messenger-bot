@@ -1,9 +1,18 @@
 /**
  * SABO M&T service catalog — structured offers for sales discovery replies.
  * Ground truth: CHIEN_LUOC_PHAT_TRIEN_2026.md + page-contracts vertical.
+ *
+ * INTERNAL price hints live in _INTERNAL_PRICE_HINTS only — never in customer strings.
  */
 
-/** @typedef {{ id: string, name: string, hook: string, outcome: string, priceHint?: string }} SaboOffer */
+/** @typedef {{ id: string, name: string, hook: string, outcome: string }} SaboOffer */
+
+/** Internal-only — agents/docs; never append to Messenger replies */
+const _INTERNAL_PRICE_HINTS = {
+  "web-leadgen": "thường 15–50tr tùy trang & thanh toán",
+  "sabohub-vertical": "gói vertical setup 10–30tr + 3–10tr/tháng",
+  "sabohub-demo": "setup 10–30tr + subscription",
+};
 
 /** @type {Record<string, SaboOffer[]>} */
 const OFFERS_BY_VERTICAL = {
@@ -13,14 +22,12 @@ const OFFERS_BY_VERTICAL = {
       name: "Website thu lead",
       hook: "Khách inbox nhiều mà chưa có chỗ để giữ lead",
       outcome: "Landing + form/Zalo — khách để lại SĐT 24/7, team gọi lại có data",
-      priceHint: "thường 15–50tr tùy trang & thanh toán",
     },
     {
       id: "sabohub-vertical",
       name: "SABOHUB theo ngành",
       hook: "Vận hành rời 3–4 app, mất nhịp ca, CEO không có dashboard",
       outcome: "Company OS + mobile — quản ca, đơn, khách, báo cáo một chỗ",
-      priceHint: "gói vertical setup 10–30tr + 3–10tr/tháng",
     },
     {
       id: "automation-ai",
@@ -41,7 +48,6 @@ const OFFERS_BY_VERTICAL = {
       name: "SABOHUB pilot",
       hook: "Quản lý bằng Excel/Zalo group — khó scale",
       outcome: "Demo vertical theo ngành anh/chị — ca, đơn, nhân sự trên app",
-      priceHint: "setup 10–30tr + subscription",
     },
     {
       id: "web-leadgen",
@@ -101,6 +107,7 @@ function pickOffers(page, count = 3, seed = 0) {
 
 module.exports = {
   OFFERS_BY_VERTICAL,
+  _INTERNAL_PRICE_HINTS,
   getOffersForPage,
   pickOffers,
 };

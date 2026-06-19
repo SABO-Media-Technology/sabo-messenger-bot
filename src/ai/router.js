@@ -33,6 +33,11 @@ const { getPageContract, getVerticalId } = require("../strategies/page-contracts
 const { fetchMessengerProfile, deriveHonorific, buildHonorificAddress } = require("../facebook/profile");
 const { buildPostQualifyFallback, isCasualGreeting } = require("../leads/post-qualify-consult");
 const { detectSalesIntent, buildDiscoveryReply, buildScopeReply } = require("../sales/discovery");
+const {
+  isPricingQuestion,
+  isInPhoneCollectionFlow,
+  buildPricingHandoffReply,
+} = require("../sales/pricing-policy");
 const { logger } = require("../utils/logger");
 
 function buildPromptWithRag(basePrompt, ragContext) {
@@ -107,7 +112,7 @@ function buildPhoneDenialReply(sessionMeta) {
 function buildFrustrationReply(profile, sessionMeta, userText) {
   const address = buildHonorificAddress(sessionMeta);
   if (hasVerifiedPhone(profile)) {
-    return `Dạ em xin lỗi ${address} — để em trả lời cụ thể hơn. Anh/chị muốn em gợi scope web, báo giá ballpark, hay giải thích quy trình làm việc ạ?`;
+    return `Dạ em xin lỗi ${address} — để em trả lời cụ thể hơn. Anh/chị muốn em gợi scope web, giải thích quy trình, hay team gửi báo giá qua Zalo/SĐT ạ?`;
   }
   return `Dạ em xin lỗi ${address} — em chưa lưu SĐT nên chưa báo giá sát được. Cho em xin SĐT/Zalo, hoặc anh/chị muốn em gợi scope web trước cũng được ạ?`;
 }
@@ -220,6 +225,17 @@ async function generateReply(page, senderId, userText) {
     const frustrationReply = buildFrustrationReply(profile, meta, text);
     recordReply(page, senderId, text, frustrationReply);
     return { text: frustrationReply, layer: "frustration-recovery" };
+  }
+
+  // Pricing handoff — no invented VND amounts (CEO policy)
+  if (
+    isPricingQuestion(text) &&
+    !isInPhoneCollectionFlow(text, profile, page, meta)
+  ) {
+    const pricingReply = buildPricingHandoffReply(page, profile, meta);
+    recordReply(page, senderId, text, pricingReply);
+    maybeQueueLead(page, senderId, text, "pricing-handoff");
+    return { text: pricingReply, layer: "pricing-handoff" };
   }
 
   // Scope request — concrete deliverables, not greeting

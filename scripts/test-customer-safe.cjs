@@ -60,9 +60,10 @@ async function testNormalPricingAllowed() {
   clearThread(page.id, senderId);
 
   const { text, layer } = await generateReply(page, senderId, "bên em báo giá website thế nào?");
-  assert(!/customer-safe-input-blocked|customer-safe-output-blocked/.test(layer), "normal pricing must pass");
-  assert(/giá|dịch vụ|scope|SĐT|Zalo|website/i.test(text), "pricing answer should remain business-focused");
-  console.log("  normal pricing remains allowed: OK");
+  assert(layer === "pricing-handoff", `expected pricing-handoff layer, got ${layer}`);
+  assert(!/\d[\d.,]*\s*tr\b|15[–-]50|500\.?\d{3}/i.test(text), "pricing handoff must not leak VND");
+  assert(/zalo|sđt|báo giá chi tiết|scope/i.test(text), "pricing answer should hand off to Zalo/SĐT");
+  console.log("  pricing-handoff layer (no VND leak): OK");
 }
 
 async function testEnvRequestBlockedInRouter() {

@@ -1,4 +1,5 @@
 const { getPageContract } = require("../strategies/page-contracts");
+const { VND_PRICE_OUTPUT_PATTERNS } = require("../sales/pricing-policy");
 
 
 
@@ -85,6 +86,8 @@ const OUTPUT_BLOCK_PATTERNS = [
   /\bBEGIN (?:RSA|EC|OPENSSH|PRIVATE) KEY\b/,
 
   /\b(?:tool|function|mcp|memory|system prompt|developer message|stack trace|traceback)\b/i,
+
+  ...VND_PRICE_OUTPUT_PATTERNS,
 
 ];
 

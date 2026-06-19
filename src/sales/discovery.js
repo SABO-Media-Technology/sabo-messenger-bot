@@ -5,12 +5,7 @@ const { buildHonorificAddress } = require("../facebook/profile");
 const { getVerticalId } = require("../strategies/page-contracts");
 const { pickOffers } = require("./sabo-mt-catalog");
 const { hashSeed, pickOpener } = require("../responses/variation");
-
-const PRICING_RE = /giá|bao nhiêu|price|cost|báo giá|quote|ngân sách|budget|\d+\s*tr\b/i;
-
-function isPricingQuestion(text) {
-  return PRICING_RE.test(text || "");
-}
+const { isPricingQuestion } = require("./pricing-policy");
 
 const DISCOVERY_PATTERNS = [
   /dịch vụ.*(thú vị|hay|gì|nào)/i,
@@ -56,9 +51,8 @@ function isDiscoveryQuestion(text) {
   return detectSalesIntent(text) === "discovery";
 }
 
-function formatOfferLine(offer, idx) {
-  const price = offer.priceHint ? ` (${offer.priceHint})` : "";
-  return `${offer.name}${price} — ${offer.outcome}`;
+function formatOfferLine(offer) {
+  return `${offer.name} — ${offer.outcome}`;
 }
 
 const QUALIFY_QUESTIONS = [
@@ -75,7 +69,7 @@ function buildDiscoveryReply(page, sessionMeta, userText = "") {
   const offers = pickOffers(page, 3, seed);
   const verticalId = getVerticalId(page);
 
-  const offerLines = offers.slice(0, 2).map((o) => formatOfferLine(o, 0));
+  const offerLines = offers.slice(0, 2).map((o) => formatOfferLine(o));
   const qualifyQ = QUALIFY_QUESTIONS[seed % QUALIFY_QUESTIONS.length];
 
   if (verticalId === "billiards-ops") {

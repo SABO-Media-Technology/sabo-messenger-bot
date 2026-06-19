@@ -97,7 +97,8 @@ function testPostQualifyFallbackVaries() {
   const greetReply = buildPostQualifyFallback(page, profile, meta, "xin chào");
 
   assert(consultReply !== pricingReply, "post-qualify fallback must vary by intent");
-  assert(/giá|scope|tr\b|ngân sách|tùy/i.test(pricingReply), "pricing reply mentions factors");
+  assert(/zalo|sđt|báo giá chi tiết|scope/i.test(pricingReply), "pricing reply is handoff without VND");
+  assert(!/\d[\d.,]*\s*tr\b|15[–-]50|500\.?\d{3}/i.test(pricingReply), "pricing reply must not leak VND");
   assert(/web|landing|giỏ|form/i.test(consultReply), "consult reply mentions web advice");
   assert(!/\(1\)|\(2\)|\(3\)/.test(consultReply), "no numbered list in consult fallback");
   assert(/chào|dạ|ạ/i.test(greetReply), "greeting reply is casual");
@@ -214,7 +215,8 @@ async function testPostQualifyPricingNotIdentical() {
     const { text: pricingText } = await generateReply(page, senderId, "giá cả như nào ?");
 
     assert(consultText !== pricingText, "post-qualify turns must not repeat identical text");
-    assert(/giá|scope|tr\b|tùy|ngân sách/i.test(pricingText), "pricing turn mentions price factors");
+    assert(/zalo|sđt|báo giá chi tiết|scope/i.test(pricingText), "pricing turn is handoff without VND");
+    assert(!/\d[\d.,]*\s*tr\b|15[–-]50/i.test(pricingText), "pricing turn must not leak ballpark");
     assert(!/xin tên|cho em.*tên/i.test(pricingText), "no re-ask name after qualify");
 
     const history = getHistory(page.id, senderId);

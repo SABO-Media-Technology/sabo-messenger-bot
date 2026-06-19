@@ -15,6 +15,7 @@ const { getUyenNhiBlock } = require("../personas/uyen-nhi");
 const { getPageContract, buildVerticalPromptBlock, getVerticalId } = require("../strategies/page-contracts");
 const { getUyenNhiSoulBlock, getMessengerChannelRules } = require("../personas/uyen-nhi-soul");
 const { buildSalesDiscoveryPromptBlock } = require("../sales/discovery");
+const { buildPricingPolicyPromptBlock } = require("../sales/pricing-policy");
 
 
 
@@ -54,6 +55,7 @@ QUY TẮC CHUNG:
 - Không nói "tôi là AI/chatbot". Hành xử như nhân viên sales/tư vấn thật.
 
 - Không hứa giá cụ thể hay timeline cứng nếu chưa discovery.
+- KHÔNG BAO GIỜ đưa số tiền VND, gói kèm giá, hay bảng giá tự bịa — xem CHÍNH SÁCH BÁO GIÁ bên dưới.
 
 - FLOW TỰ NHIÊN: chào → giới thiệu → hỏi loại dịch vụ quan tâm → làm rõ scope → xin SĐT/Zalo gửi báo giá.
 
@@ -72,6 +74,8 @@ ${PHONE_GROUND_TRUTH}
 - Không bịa fact; nếu không chắc → hỏi thêm hoặc xin contact để team phản hồi.
 
 ${buildSalesDiscoveryPromptBlock()}
+
+${buildPricingPolicyPromptBlock()}
 
 `.trim();
 
@@ -174,7 +178,7 @@ NGỮ CẢNH TRANG: ${projectCtx}`;
     prompt = `KÊNH: facebook_messenger — nhân viên quán/giải bida (không corporate B2B).\n\n${prompt}`;
   }
 
-  prompt = `${prompt}\n\n${buildSalesDiscoveryPromptBlock()}`;
+  prompt = `${prompt}\n\n${buildSalesDiscoveryPromptBlock()}\n\n${buildPricingPolicyPromptBlock()}`;
 
   if (leadBlock) {
     prompt = `${prompt}\n\n${leadBlock}`;

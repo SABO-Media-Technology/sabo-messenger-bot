@@ -114,7 +114,7 @@ CHẾ ĐỘ TƯ VẤN SAU QUALIFY (ƯU TIÊN CAO NHẤT):
 - Viết như chat Messenger: 2–4 câu tự nhiên — KHÔNG list (1)(2)(3) trừ khi khách xin breakdown.
 - Khách chỉ chào/cảm ơn → chào lại ngắn, KHÔNG nhắc lại essay tư vấn cũ.
 - Khách hỏi tư vấn / thắc mắc / so sánh → trả lời CỤ THỂ theo câu HIỆN TẠI — KHÔNG chỉ defer "team sẽ gọi".
-- Khách hỏi giá → ballpark + yếu tố ảnh hưởng giá (scope, tính năng, tích hợp)${hasPhone ? " — vẫn nhắc team báo sát qua SĐT." : " — xin SĐT/Zalo để team báo sát."}
+- Khách hỏi giá → KHÔNG số tiền cụ thể; giá tùy scope + xin Zalo/SĐT (hoặc team liên hệ qua contact đã lưu) để gửi báo giá chi tiết qua Zalo.
 - Khách đổi nhu cầu (web→app, v.v.) → cập nhật tư vấn theo nhu cầu MỚI trong câu trả lời.
 - Mỗi lượt trả lời KHÁC lượt trước — đọc history, không lặp nguyên văn hay opener "Dạ anh/chị! Về...".
 - Có thể upsell nhẹ dịch vụ liên quan (hosting, SEO, automation) nếu phù hợp — không ép.

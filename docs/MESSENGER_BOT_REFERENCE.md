@@ -178,9 +178,22 @@ Code: `src/ai/rag.js` — **best-effort**; RAG fail không block reply.
 2. Set Render env: `BRAIN_RAG_ENABLED=true`, `BRAIN_RAG_URL=https://<brain-rag-host>`
 3. Redeploy; verify `/health` → `brainRag: true`
 
-### Cost ballpark
+### Cost ballpark (infra — not customer pricing)
 
 ~**$0.002/reply** (Groq llama-3.3-70b, ~400 tokens out, không RAG). OpenAI mini tương đương order of magnitude. Lead queue + Telegram = negligible.
+
+### Pricing policy (customer-facing — CEO 2026-06-19)
+
+Bot **không** được bịa giá (500k/ảnh, gói 5–20M/th, 15–50tr web, v.v.).
+
+| Layer | File | Hành vi |
+|-------|------|---------|
+| Early handoff | `src/sales/pricing-policy.js` + `router.js` | `isPricingQuestion` → `pricing-handoff` layer trước LLM; `buildPricingHandoffReply()` — 2–3 câu, xin Zalo/SĐT |
+| Output guard | `customer-safe-guard.js` | Block reply có pattern VND (`\d tr`, `triệu`, `Gói Basic`, …) |
+| Catalog | `sabo-mt-catalog.js` | `priceHint` gỡ khỏi customer strings; `_INTERNAL_PRICE_HINTS` agent-only |
+| Prompts | `prompts.js`, `uyen-nhi-soul.js`, `flow.js` | CHÍNH SÁCH BÁO GIÁ — never invent prices |
+
+Verify: `npm run test:pricing-policy`
 
 ### Customer-safe security model (Messenger -> Hermes/LLM)
 
@@ -260,8 +273,8 @@ Bot phải hành xử như nhân viên sales VN thật, **không** interrogation
 **Flow chuẩn:**
 
 1. Chào + giới thiệu dịch vụ + **một** câu qualify (loại/dịch vụ quan tâm)
-2. Khách hỏi giá/ngân sách → làm rõ scope/loại trước, không lecture budget
-3. Sẵn sàng báo giá → "Cho em xin SĐT (hoặc Zalo) để em gửi báo giá chi tiết nhé ạ"
+2. Khách hỏi giá/ngân sách → **KHÔNG** số VND/gói giá trên chat; giá tùy scope → xin Zalo/SĐT (hoặc team liên hệ qua contact đã lưu) gửi báo giá chi tiết qua Zalo
+3. Sẵn sàng báo giá → "Cho em xin SĐT (hoặc Zalo) để team gửi báo giá chi tiết qua Zalo nhé ạ"
 4. Có SĐT → có thể hỏi Zalo để gửi file báo giá
 
 **Facebook profile name (`src/facebook/profile.js`):**
@@ -314,7 +327,7 @@ npm run test:lead-flow
 | Tên khách | Lấy từ Facebook Graph API — không hỏi tên nếu đã có |
 | SABO gọi khách | Không bảo khách "gọi hotline" hay "liên hệ qua SĐT công ty" |
 | Hotline `0798893333` | Chỉ khi khách **hỏi rõ** hotline/số văn phòng, hoặc menu "Gọi ngay" |
-| Layer 0 templates | `giá`/`ngân sách` → qualify scope; `sản phẩm` → list + qualify |
+| Layer 0 templates | `giá`/`ngân sách` → **pricing-handoff** (no VND); `sản phẩm` → list + qualify |
 | Thứ tự thu | **need → contact** (một field/lượt); name từ FB, không bắt buộc hỏi |
 
 ### Key files map

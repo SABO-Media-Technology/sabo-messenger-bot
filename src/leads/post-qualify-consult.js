@@ -23,10 +23,11 @@ const {
 const { pickOpener, pickCloser, hashSeed } = require("../responses/variation");
 const { isDiscoveryQuestion, buildDiscoveryReply } = require("../sales/discovery");
 const { hasVerifiedPhone } = require("./extract");
-
-
-
-const PRICING_RE = /giá|bao nhiêu|price|cost|báo giá|quote|ngân sách|budget|\d+\s*tr\b/i;
+const {
+  isPricingQuestion,
+  buildPricingHandoffReply,
+  buildPricingPolicyPromptBlock,
+} = require("../sales/pricing-policy");
 
 
 
@@ -35,14 +36,6 @@ const GREETING_RE = /^(xin chào|chào|hello|hi|hey|alo|dạ)\b/i;
 const THANKS_RE = /cảm ơn|thank/i;
 
 const SHORT_ACK_RE = /^(ok|oke|vâng|ừ|uh|uhm|được|hiểu rồi)\b/i;
-
-
-
-function isPricingQuestion(text) {
-
-  return PRICING_RE.test(text || "");
-
-}
 
 
 
@@ -93,34 +86,6 @@ function messageRelatesToNeed(userText, need) {
     .filter((w) => w.length >= 4);
 
   return needWords.some((w) => text.includes(w));
-
-}
-
-
-
-function pricingBallpark(need) {
-
-  const n = (need || "").toLowerCase();
-
-  if (/app|mobile|ứng dụng/i.test(n)) {
-
-    return "app SME thường từ ~150tr (standalone) hoặc gói vertical 10–30tr setup + 3–10tr/tháng tùy module";
-
-  }
-
-  if (/website|web|trang|landing|bán hàng/i.test(n)) {
-
-    return "website/landing thường 15–50tr tùy số trang, giỏ hàng, tích hợp thanh toán";
-
-  }
-
-  if (/automation|tự động|ai/i.test(n)) {
-
-    return "automation/AI workflow báo theo số quy trình và tích hợp — thường từ vài chục triệu";
-
-  }
-
-  return "dự án chuyển đổi số SME thường 50–150tr (build) hoặc subscription vertical 10–30tr setup";
 
 }
 
@@ -259,21 +224,7 @@ function buildPostQualifyFallback(page, profile, sessionMeta, userText) {
 
 
   if (isPricingQuestion(text)) {
-
-    const ballpark = pricingBallpark(need);
-
-    const lines = hasPhone
-      ? [
-          `${opener} Giá ${need} phụ thuộc scope cụ thể — ${ballpark}. Team đã có SĐT, sẽ gọi báo sát sau vài câu hỏi ngắn. ${closer}`,
-          `${opener} Về giá thì ${ballpark} — còn tùy tính năng và tích hợp nữa. Em note SĐT anh/chị rồi, team báo chi tiết qua call nhé.`,
-        ]
-      : [
-          `${opener} Giá ${need} phụ thuộc scope cụ thể — ${ballpark}. Cho em xin SĐT/Zalo để team báo sát nhé ạ.`,
-          `${opener} Về giá thì ${ballpark} — còn tùy tính năng và tích hợp. ${handoff}`,
-        ];
-
-    return lines[seed % lines.length];
-
+    return buildPricingHandoffReply(page, profile, sessionMeta);
   }
 
 
@@ -341,27 +292,7 @@ function buildPostQualifyFallback(page, profile, sessionMeta, userText) {
 
 
 function buildPostQualifyPricingHint(hasPhone = true) {
-
-  const contactKet = hasPhone
-    ? "- Kết: team đã có SĐT → báo sát sau call ngắn, nhưng vẫn cho khách cảm giác được tư vấn ngay."
-    : "- Kết: CHƯA có SĐT → xin SĐT/Zalo, KHÔNG nói team sẽ gọi.";
-
-  return `
-
-BÁO GIÁ SAU QUALIFY (khi khách hỏi giá):
-
-- Đưa ballpark + yếu tố ảnh hưởng giá — KHÔNG chỉ nói "team sẽ gọi".
-
-- Website/landing: ~15–50tr tùy trang, giỏ hàng, thanh toán.
-
-- App SME standalone: ~150tr+; vertical subscription: setup 10–30tr + 3–10tr/tháng.
-
-- Build pioneer dự án: ~50–150tr tùy scope.
-
-- Viết như chat Messenger: 2–4 câu tự nhiên, KHÔNG list (1)(2)(3) trừ khi khách xin breakdown chi tiết.
-
-${contactKet}`.trim();
-
+  return buildPricingPolicyPromptBlock();
 }
 
 
@@ -375,8 +306,6 @@ module.exports = {
   buildPostQualifyFallback,
 
   buildPostQualifyPricingHint,
-
-  pricingBallpark,
 
   consultSnippet,
 

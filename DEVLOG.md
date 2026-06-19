@@ -1,3 +1,34 @@
+## [2026-06-19] Pricing policy — no invented VND on Messenger
+
+### Đã làm
+- CEO policy: hỏi giá → **không** số VND/gói giá; handoff Zalo/SĐT để team gửi báo giá chi tiết
+- `src/sales/pricing-policy.js` (new) — `isPricingQuestion`, `buildPricingHandoffReply`, output guard patterns
+- `router.js` — early layer `pricing-handoff` trước LLM (trừ phone collection flow)
+- `customer-safe-guard.js` — block reply có pattern VND/gói giá
+- Gỡ ballpark: `sabo-mt-catalog.js`, `post-qualify-consult.js`, `discovery.js`, `flow.js`, `prompts.js`, `uyen-nhi-soul.js`
+- `scripts/test-pricing-policy.cjs` + `test:predeploy`
+
+### Files changed
+- src/sales/pricing-policy.js (new)
+- src/sales/sabo-mt-catalog.js, discovery.js
+- src/leads/post-qualify-consult.js, flow.js
+- src/ai/router.js, customer-safe-guard.js
+- src/responses/prompts.js, personas/uyen-nhi-soul.js
+- scripts/test-pricing-policy.cjs (new), test-lead-flow.cjs, test-customer-safe.cjs
+- package.json, docs/MESSENGER_BOT_REFERENCE.md, DEVLOG.md
+
+### Verify
+```bash
+npm run test:pricing-policy
+npm run test:predeploy
+npm run test:conversation-local  # optional local replay
+```
+
+### Chưa làm / handoff
+- Deploy: `npm run deploy:render` sau khi test:predeploy PASS
+
+---
+
 ## [2026-06-18] Fix false SĐT claims + scope/phone recall regression
 
 ### Đã làm
@@ -948,3 +979,21 @@ pm run test:hermes OK page 332950393234346; Groq API ping OK.
 - Nếu `npm run deploy:render` báo không load được service: xóa `RENDER_API_KEY` stale trong shell trước khi chạy (script chỉ đọc `.env.secrets` khi biến chưa set lúc load module).
 - `git push`: cần `Remove-Item Env:GITHUB_TOKEN` nếu token invalid; dùng `gh auth setup-git`.
 
+
+## [2026-06-18] Test local hội thoại SABO Media 332950393234346 (CEO)
+### Đã làm
+- Dùng fix phone/scope trong `router.js`, `extract.js`, `flow.js`, `post-qualify-consult.js` (không deploy).
+- Thêm `scripts/test-conversation-local.cjs` — 6 lượt cùng senderId, profile trống, `HERMES_ENABLED=false`.
+- Chạy `node --use-system-ca scripts/test-conversation-local.cjs` — assert OK (l3 phone-recall, l5 sales-scope, không “đã có SĐT”).
+- `npm run test:predeploy` — PASS.
+
+### Files changed
+- scripts/test-conversation-local.cjs (new)
+- (uncommitted từ subagent) src/ai/router.js, src/leads/extract.js, src/leads/flow.js, src/leads/post-qualify-consult.js, scripts/test-conversation-regression.cjs, …
+
+### Chưa làm / handoff
+- Lượt 2 rơi `fallback-error` khi Groq 429 / OpenAI 401 — cân nhắc rule-based ack “web thu lead” khi LLM fail.
+- Deploy Render: CEO chỉ yêu cầu local output — chưa ship.
+
+## [2026-06-18] Ship false SĐT + scope (3337d60)
+- Push main OK (schannel); deploy:render live; prod /health gitCommit 3337d60; test-conversation-local post-deploy PASS.
