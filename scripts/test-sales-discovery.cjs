@@ -66,12 +66,10 @@ async function testThinRouter() {
   delete process.env.OPENAI_API_KEY;
 
   try {
-    const { layer } = await generateReply(page, senderId, DISCOVERY_QUESTION);
-    assert(
-      layer === "fallback-no-llm" || /^llm/.test(layer),
-      `thin router: discovery via LLM/fallback, not sales-discovery layer — got ${layer}`,
-    );
-    assert(layer !== "sales-discovery", "sales-discovery handler must be bypassed");
+    const { text, layer } = await generateReply(page, senderId, DISCOVERY_QUESTION);
+    assert(layer === "sales-discovery", `services question must use sales-discovery layer — got ${layer}`);
+    assert(/website|lead|SABOHUB|bot|automation/i.test(text), `must list services: ${text.slice(0, 120)}`);
+    assert(!/cho em xin sđt hoặc email/i.test(text), "discovery must not ask SĐT/email");
   } finally {
     if (savedGroq) process.env.GROQ_API_KEY = savedGroq;
     if (savedOpenai) process.env.OPENAI_API_KEY = savedOpenai;
@@ -123,7 +121,7 @@ async function main() {
   console.log("  buildDiscoveryReply: OK");
 
   await testThinRouter();
-  console.log("  thin router (no sales-discovery layer): OK");
+  console.log("  router sales-discovery rule: OK");
 
   await testRouterPreference();
   console.log("  thin router (no sales-preference layer): OK");

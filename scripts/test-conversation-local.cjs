@@ -114,7 +114,7 @@ async function main() {
       if (profile.phone) console.log("(profile.phone sau luot: " + profile.phone + ")");
 
       if (i === 0) {
-        assert(/^llm/.test(layer), "Luot 1: discovery via LLM+prompt, got " + layer);
+        assert(layer === "sales-discovery", "Luot 1: discovery via sales-discovery rule, got " + layer);
         assert(/website|lead|sabohub|bot/i.test(text), "Luot 1: phai goi dich vu cu the");
       }
       if (i === 1) {

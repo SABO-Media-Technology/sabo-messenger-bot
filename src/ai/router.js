@@ -29,7 +29,10 @@ const {
   asksForOwnPhone,
   deniesGivingPhone,
   clearFalsePhone,
+  hasVerifiedPhone,
 } = require("../leads/extract");
+const { detectServicesQuestion, buildDiscoveryReply } = require("../sales/discovery");
+const { buildPostQualifyFallback } = require("../leads/post-qualify-consult");
 const {
   isLeadComplete,
   markQualified,
@@ -53,7 +56,23 @@ function isGetStartedLike(text) {
   return /tìm hiểu thêm|bắt đầu|get started/i.test(text || "");
 }
 
-function fallbackReply(page) {
+function fallbackReply(page, profile, sessionMeta, userText) {
+  const text = (userText || "").trim();
+
+  if (text && detectServicesQuestion(text)) {
+    return buildDiscoveryReply(page, sessionMeta || {}, text);
+  }
+
+  if (profile && hasVerifiedPhone(profile)) {
+    if (text) {
+      const contextual = buildPostQualifyFallback(page, profile, sessionMeta || {}, text);
+      if (contextual && !/cho em xin sđt|cho em xin email/i.test(contextual)) {
+        return contextual;
+      }
+    }
+    return `Cảm ơn anh/chị đã nhắn tin ${page.name}! Team SABO đã có SĐT — sẽ liên hệ báo sát hơn ạ.`;
+  }
+
   return (
     getReplyText(page.id) ||
     `Cảm ơn anh/chị đã nhắn tin ${page.name}! Em ghi nhận rồi — cho em xin SĐT hoặc Zalo để team SABO liên hệ sớm nhé?`
@@ -149,7 +168,7 @@ function maybeQueueLead(page, senderId, userText, layer) {
 async function generateReply(page, senderId, userText) {
   const text = (userText || "").trim();
   if (!text) {
-    return { text: fallbackReply(page), layer: "fallback-empty" };
+    return { text: fallbackReply(page, null, null, ""), layer: "fallback-empty" };
   }
 
   const inputGuard = inspectCustomerInput(text);
@@ -185,6 +204,14 @@ async function generateReply(page, senderId, userText) {
     return { text: pricingReply, layer: "pricing-handoff" };
   }
 
+  if (detectServicesQuestion(text)) {
+    const discoveryReply = buildDiscoveryReply(page, meta, text);
+    recordReply(page, senderId, text, discoveryReply);
+    maybeQueueLead(page, senderId, text, "sales-discovery");
+    maybeQueueCompleteLead(page, senderId, text, "sales-discovery", profile, meta);
+    return { text: discoveryReply, layer: "sales-discovery" };
+  }
+
   const history = getHistory(page.id, senderId);
   if ((isGreetingLike(text) || isGetStartedLike(text)) && history.length === 0) {
     const greeting = buildGreetingForSession(page, meta);
@@ -194,7 +221,7 @@ async function generateReply(page, senderId, userText) {
   }
 
   if (!isLlmConfigured() && !isHermesEnabled()) {
-    const fb = fallbackReply(page);
+    const fb = fallbackReply(page, profile, meta, text);
     recordReply(page, senderId, text, fb);
     maybeQueueLead(page, senderId, text, "fallback-no-llm");
     maybeQueueCompleteLead(page, senderId, text, "fallback-no-llm", profile, meta);
@@ -284,7 +311,7 @@ async function generateReply(page, senderId, userText) {
       pageId: page.id,
       error: err.message,
     });
-    const fb = fallbackReply(page);
+    const fb = fallbackReply(page, profile, meta, text);
     recordReply(page, senderId, text, fb);
     maybeQueueLead(page, senderId, text, "fallback-error");
     maybeQueueCompleteLead(page, senderId, text, "fallback-error", profile, meta);

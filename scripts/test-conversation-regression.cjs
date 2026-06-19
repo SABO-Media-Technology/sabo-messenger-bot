@@ -195,6 +195,91 @@ function testPhoneValidation() {
   console.log("  phone validation: OK");
 }
 
+const { detectServicesQuestion } = require("../src/sales/discovery");
+
+const ASK_CONTACT = /cho em xin sđt|cho em xin email|xin sđt hoặc email/i;
+const SERVICES_KW = /website|lead|sabohub|bot|automation|sabo m&t|dịch vụ/i;
+
+async function testServicesWithPhone() {
+  loadPageRegistry();
+  const page = getPage("332950393234346");
+  const senderId = "regression_services_with_phone";
+  clearThread(page.id, senderId);
+
+  const question = "bên bạn có những dịch vụ gì ?";
+  assert(detectServicesQuestion(question), "CEO question must detect as services");
+
+  setLeadProfile(
+    page.id,
+    senderId,
+    { ...emptyProfile(), phone: "0961167717", qualified: true, need: "Làm website" },
+    page.projectSlug,
+  );
+  setSessionMeta(page.id, senderId, { honorific: "anh/chị", fbProfileFetched: true });
+
+  const savedGroq = process.env.GROQ_API_KEY;
+  const savedOpenai = process.env.OPENAI_API_KEY;
+  process.env.GROQ_API_KEY = "test-key-stub";
+  process.env.OPENAI_API_KEY = "test-key-stub";
+
+  const llmPath = require.resolve("../src/ai/llm");
+  const routerPath = require.resolve("../src/ai/router");
+  const llm = require(llmPath);
+  const origChat = llm.chatCompletion;
+  llm.chatCompletion = async () => {
+    throw new Error("LLM stub fail 429");
+  };
+  delete require.cache[routerPath];
+  const { generateReply } = require(routerPath);
+
+  try {
+    const { text, layer } = await generateReply(page, senderId, question);
+    assert(layer === "sales-discovery", `expected sales-discovery, got ${layer}`);
+    assert(SERVICES_KW.test(text), `must list services: ${text.slice(0, 160)}`);
+    assert(!ASK_CONTACT.test(text), `must NOT ask SĐT when has phone: ${text}`);
+  } finally {
+    llm.chatCompletion = origChat;
+    delete require.cache[routerPath];
+    if (savedGroq) process.env.GROQ_API_KEY = savedGroq;
+    else delete process.env.GROQ_API_KEY;
+    if (savedOpenai) process.env.OPENAI_API_KEY = savedOpenai;
+    else delete process.env.OPENAI_API_KEY;
+  }
+
+  console.log("  services + phone (LLM fail): OK");
+}
+
+async function testFallbackNoReaskPhone() {
+  loadPageRegistry();
+  const page = getPage("332950393234346");
+  const senderId = "regression_fallback_has_phone";
+  clearThread(page.id, senderId);
+
+  setLeadProfile(
+    page.id,
+    senderId,
+    { ...emptyProfile(), phone: "0961167717", qualified: true, need: "Làm website" },
+    page.projectSlug,
+  );
+  setSessionMeta(page.id, senderId, { honorific: "anh/chị", fbProfileFetched: true });
+
+  const savedGroq = process.env.GROQ_API_KEY;
+  const savedOpenai = process.env.OPENAI_API_KEY;
+  delete process.env.GROQ_API_KEY;
+  delete process.env.OPENAI_API_KEY;
+
+  try {
+    const { text, layer } = await generateReply(page, senderId, "ok em hiểu rồi");
+    assert(layer === "fallback-no-llm", `expected fallback-no-llm, got ${layer}`);
+    assert(!ASK_CONTACT.test(text), `fallback with phone must not re-ask contact: ${text}`);
+  } finally {
+    if (savedGroq) process.env.GROQ_API_KEY = savedGroq;
+    if (savedOpenai) process.env.OPENAI_API_KEY = savedOpenai;
+  }
+
+  console.log("  fallback-no-llm + phone: OK");
+}
+
 async function main() {
   console.log("\n=== Conversation Regression Tests ===\n");
   testPhoneValidation();
@@ -203,6 +288,8 @@ async function main() {
   await testAskOwnPhoneWithPhone();
   await testPhoneDenial();
   await testScopeRequest();
+  await testServicesWithPhone();
+  await testFallbackNoReaskPhone();
   console.log("\nAll conversation regression tests passed.\n");
 }
 

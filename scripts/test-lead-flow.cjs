@@ -76,12 +76,9 @@ async function testSalesDiscoveryRouter() {
   delete process.env.OPENAI_API_KEY;
 
   try {
-    const { layer } = await generateReply(page, senderId, "có dịch vụ công nghệ nào thú vị không?");
-    assert(
-      layer === "fallback-no-llm" || /^llm/.test(layer),
-      `thin router: discovery via LLM/fallback, not sales-discovery — got ${layer}`,
-    );
-    assert(layer !== "sales-discovery", "sales-discovery handler must be bypassed");
+    const { text, layer } = await generateReply(page, senderId, "có dịch vụ công nghệ nào thú vị không?");
+    assert(layer === "sales-discovery", `services question must use sales-discovery — got ${layer}`);
+    assert(/website|lead|sabohub|bot/i.test(text), `must list services: ${text.slice(0, 120)}`);
   } finally {
     if (savedGroq) process.env.GROQ_API_KEY = savedGroq;
     if (savedOpenai) process.env.OPENAI_API_KEY = savedOpenai;

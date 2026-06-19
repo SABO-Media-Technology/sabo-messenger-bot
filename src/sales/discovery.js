@@ -11,8 +11,9 @@ const DISCOVERY_PATTERNS = [
   /dịch vụ.*(thú vị|hay|gì|nào)/i,
   /công nghệ.*(thú vị|hay|gì|nào)/i,
   /(thú vị|hay ho).*(dịch vụ|công nghệ|làm)/i,
-  /bên (em|sabo|anh|chị).*(làm gì|dịch vụ gì|offer|tư vấn gì)/i,
-  /(có|làm) (gì|được gì|dịch vụ gì)/i,
+  /bên (em|bạn|mình|sabo|anh|chị).*(làm gì|dịch vụ|offer|tư vấn)/i,
+  /(có|làm) (gì|được gì|dịch vụ gì|những dịch vụ)/i,
+  /(những )?dịch vụ (gì|nào)/i,
   /tư vấn (gì|những gì|dịch vụ)/i,
   /(giới thiệu|kể).*(dịch vụ|sabo|bên em)/i,
   /muốn (tìm hiểu|biết).*(dịch vụ|sabo|làm gì)/i,
@@ -70,6 +71,11 @@ function detectPreferenceScopeType(text) {
 
 function isDiscoveryQuestion(text) {
   return detectSalesIntent(text) === "discovery";
+}
+
+/** Services / "bạn làm gì" — deterministic pre-LLM + fallback path */
+function detectServicesQuestion(text) {
+  return isDiscoveryQuestion(text);
 }
 
 function formatOfferLine(offer) {
@@ -193,6 +199,7 @@ module.exports = {
   detectSalesIntent,
   detectPreferenceScopeType,
   isDiscoveryQuestion,
+  detectServicesQuestion,
   buildDiscoveryReply,
   buildPreferenceReply,
   buildScopeReply,
