@@ -1,5 +1,5 @@
 /**
- * Sales discovery smoke test — open-ended service questions must NOT open with app MVP essay.
+ * Sales discovery smoke test — discovery module + thin router (no sales-discovery layer).
  * Usage: npm run test:sales-discovery
  */
 const path = require("path");
@@ -12,9 +12,11 @@ const {
   detectSalesIntent,
   isDiscoveryQuestion,
   buildDiscoveryReply,
+  buildPreferenceReply,
 } = require("../src/sales/discovery");
 const { generateReply } = require("../src/ai/router");
 const { clearThread } = require("../src/session/store");
+const { buildSystemPrompt } = require("../src/ai/prompt-builder");
 
 const DISCOVERY_QUESTION = "có dịch vụ công nghệ nào thú vị không?";
 
@@ -37,10 +39,7 @@ function testReplyContent() {
     /website|lead|SABOHUB|bot|automation|chatbot|Automation/i.test(reply),
     `reply must mention concrete SABO services, got: ${reply.slice(0, 120)}`,
   );
-  assert(
-    !/^Với app, em thường tư vấn pilot MVP/i.test(reply),
-    "must NOT open with pilot MVP essay",
-  );
+  assert(!/^Với app, em thường tư vấn pilot MVP/i.test(reply), "must NOT open with pilot MVP essay");
   assert(!/pilot MVP/i.test(reply.slice(0, 80)), "first ~80 chars must not mention pilot MVP");
   assert(!/cần em làm rõ phần nào/i.test(reply), "no weak qualify closer");
   assert(/\?/.test(reply), "must end with engaging question");
@@ -48,38 +47,90 @@ function testReplyContent() {
   return reply;
 }
 
-async function testRouter() {
+async function testThinRouter() {
   loadPageRegistry();
   const page = getPage("332950393234346");
   const senderId = "test_sales_discovery_script";
   clearThread(page.id, senderId);
 
-  const { text, layer } = await generateReply(page, senderId, DISCOVERY_QUESTION);
-  assert(layer === "sales-discovery", `expected sales-discovery layer, got ${layer}`);
-  assert(
-    /website|lead|SABOHUB|bot|automation|chatbot|Automation/i.test(text),
-    "router reply must mention concrete services",
-  );
-  assert(!/^Với app, em thường tư vấn pilot MVP/i.test(text), "router must not open with app MVP");
+  const prompt = buildSystemPrompt({
+    page,
+    sessionMeta: { honorific: "anh/chị" },
+    leadProfile: { need: null, phone: null },
+  });
+  assert(/discovery|dịch vụ thú vị|SABO/i.test(prompt), "prompt must include discovery guidance");
 
-  return text;
+  const savedGroq = process.env.GROQ_API_KEY;
+  const savedOpenai = process.env.OPENAI_API_KEY;
+  delete process.env.GROQ_API_KEY;
+  delete process.env.OPENAI_API_KEY;
+
+  try {
+    const { layer } = await generateReply(page, senderId, DISCOVERY_QUESTION);
+    assert(
+      layer === "fallback-no-llm" || /^llm/.test(layer),
+      `thin router: discovery via LLM/fallback, not sales-discovery layer — got ${layer}`,
+    );
+    assert(layer !== "sales-discovery", "sales-discovery handler must be bypassed");
+  } finally {
+    if (savedGroq) process.env.GROQ_API_KEY = savedGroq;
+    if (savedOpenai) process.env.OPENAI_API_KEY = savedOpenai;
+  }
+}
+
+function testPreferenceIntent() {
+  const pref = "ưu tiên web thu lead";
+  assert(detectSalesIntent(pref) === "preference", "preference intent for web thu lead");
+  const page = { projectSlug: "sabo-mt", id: "test", replyStrategy: "sabo-mt" };
+  const meta = { honorific: "anh/chị" };
+  const reply = buildPreferenceReply(page, meta, pref);
+  assert(/trang|landing|form|zalo|tuần/i.test(reply), `preference reply concrete: ${reply.slice(0, 120)}`);
+  assert(!/cảm ơn anh\/chị đã nhắn tin/i.test(reply), "preference must not be generic fallback");
+}
+
+async function testRouterPreference() {
+  loadPageRegistry();
+  const page = getPage("332950393234346");
+  const senderId = "test_sales_preference_script";
+  clearThread(page.id, senderId);
+
+  const savedGroq = process.env.GROQ_API_KEY;
+  const savedOpenai = process.env.OPENAI_API_KEY;
+  delete process.env.GROQ_API_KEY;
+  delete process.env.OPENAI_API_KEY;
+
+  try {
+    const { layer } = await generateReply(page, senderId, "ưu tiên web thu lead");
+    assert(
+      layer === "fallback-no-llm" || /^llm/.test(layer),
+      `thin router: preference via LLM/fallback — got ${layer}`,
+    );
+    assert(layer !== "sales-preference", "sales-preference handler must be bypassed");
+  } finally {
+    if (savedGroq) process.env.GROQ_API_KEY = savedGroq;
+    if (savedOpenai) process.env.OPENAI_API_KEY = savedOpenai;
+  }
 }
 
 async function main() {
   console.log("test:sales-discovery");
   testIntent();
   console.log("  intent detection: OK");
+  testPreferenceIntent();
+  console.log("  preference intent: OK");
 
   const templateReply = testReplyContent();
   console.log("  buildDiscoveryReply: OK");
 
-  const routerReply = await testRouter();
-  console.log("  router layer sales-discovery: OK");
+  await testThinRouter();
+  console.log("  thin router (no sales-discovery layer): OK");
+
+  await testRouterPreference();
+  console.log("  thin router (no sales-preference layer): OK");
 
   console.log("\n--- Example reply (CEO review) ---");
   console.log(`Q: ${DISCOVERY_QUESTION}`);
   console.log(`A (template): ${templateReply}`);
-  console.log(`A (router):   ${routerReply}`);
   console.log("\nPASS");
 }
 

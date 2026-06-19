@@ -131,10 +131,18 @@ async function testPhoneDenial() {
 
   assert(deniesGivingPhone("tao đã gửi số dt cho mày đâu"), "detect phone denial");
 
-  const { text, layer } = await generateReply(page, senderId, "tao đã gửi số dt cho mày đâu");
-  assert(layer === "phone-denial", `expected phone-denial, got ${layer}`);
-  assert(/xin lỗi|nhầm/i.test(text), `must apologize: ${text}`);
-  assert(/xin.*sđt|xin.*zalo/i.test(text), `must ask phone: ${text}`);
+  const savedGroq = process.env.GROQ_API_KEY;
+  const savedOpenai = process.env.OPENAI_API_KEY;
+  delete process.env.GROQ_API_KEY;
+  delete process.env.OPENAI_API_KEY;
+
+  try {
+    const { layer } = await generateReply(page, senderId, "tao đã gửi số dt cho mày đâu");
+    assert(layer === "fallback-no-llm" || /^llm/.test(layer), `phone denial via LLM/fallback, got ${layer}`);
+  } finally {
+    if (savedGroq) process.env.GROQ_API_KEY = savedGroq;
+    if (savedOpenai) process.env.OPENAI_API_KEY = savedOpenai;
+  }
 
   const profile = getLeadProfile(page.id, senderId);
   assert(!profile.phone, "phone must be cleared after denial");
@@ -161,10 +169,21 @@ async function testScopeRequest() {
   assert(/trang|landing|form|zalo|tuần/i.test(scopeDirect), `scope reply concrete: ${scopeDirect}`);
   assert(!/^chào.*có gì thắc mắc/i.test(scopeDirect), "scope must not be generic greeting");
 
-  const { text, layer } = await generateReply(page, senderId, "ok, gợi scope đi");
-  assert(layer === "sales-scope", `expected sales-scope, got ${layer}`);
-  assert(/trang|landing|form|zalo|tuần/i.test(text), `router scope concrete: ${text}`);
-  assert(!/có gì thắc mắc về dự án/i.test(text), "must not be generic greeting");
+  const savedGroq = process.env.GROQ_API_KEY;
+  const savedOpenai = process.env.OPENAI_API_KEY;
+  delete process.env.GROQ_API_KEY;
+  delete process.env.OPENAI_API_KEY;
+
+  try {
+    const { layer } = await generateReply(page, senderId, "ok, gợi scope đi");
+    assert(
+      layer === "fallback-no-llm" || /^llm/.test(layer),
+      `scope via prompt/LLM path, not sales-scope handler — got ${layer}`,
+    );
+  } finally {
+    if (savedGroq) process.env.GROQ_API_KEY = savedGroq;
+    if (savedOpenai) process.env.OPENAI_API_KEY = savedOpenai;
+  }
 
   console.log("  scope request web-lead: OK");
 }

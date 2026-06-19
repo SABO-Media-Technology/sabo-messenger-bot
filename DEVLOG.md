@@ -1,3 +1,51 @@
+
+## [2026-06-19] Thin bot router — prompt-first, minimal rules
+
+### Đã làm
+- **Router:** `src/ai/router.js` 461 → **261 lines** (~43% giảm). Pipeline: `safe-in → phone-recall → pricing-handoff → greeting (turn 1) → LLM(prompt+history) → safe-out`; Hermes chỉ khi `HERMES_ENABLED=true`
+- **Layers:** ~16 intent/handler layers → **7** (`customer-safe-*`, `phone-recall`, `pricing-handoff`, `greeting`, `llm*`, `fallback-*`, `human-handoff`)
+- **Mới:** `src/ai/prompt-builder.js` — `buildSystemPrompt()` gộp persona Uyển Nhi + vertical + lead state + churn/page-correction/frustration/scope/discovery rules vào system prompt
+- **Bypass (không xóa file):** post-qualify-consult essay, sales-discovery/preference/scope/churn-close/page-correction handlers — behavior chuyển sang prompt + LLM
+- **Giữ deterministic:** pricing-handoff, phone-recall (đọc DB thật), customer-safe
+- Tests cập nhật: `test-ai-newbie-conversation`, `test-conversation-regression`, `test-lead-flow`, `test-sales-discovery`, `test-conversation-local` (new)
+- `npm run test:predeploy` — **PASS** (8 suites)
+
+### Files changed
+- src/ai/router.js
+- src/ai/prompt-builder.js (new)
+- scripts/test-ai-newbie-conversation.cjs
+- scripts/test-conversation-regression.cjs
+- scripts/test-conversation-local.cjs (new)
+- scripts/test-lead-flow.cjs
+- scripts/test-sales-discovery.cjs
+- DEVLOG.md
+
+### Chưa làm / handoff
+- **Push:** `git push origin main` FAIL — SSL + invalid token (2026-06-19). Commit local: `f7606b5`
+- `npm run deploy:render` sau khi push
+- CEO retest live inbox sau deploy
+- Có thể xóa `scripts/_patch-router.cjs` (patch router cũ — không commit)
+
+---
+
+
+### Da lam
+- Xac nhan local main @ d6ff186 (fix ai-newbie: churn, phone-recall, page-correction) — ahead origin/main by 1 commit
+- Push git push origin main: FAIL — OpenSSL verify (issuer); retry git -c http.sslBackend=schannel push origin main: FAIL — Invalid username or token
+- Deploy 
+pm run deploy:render: **khong chay** (phu thuoc push)
+- Health prod https://sabo-messenger-bot.onrender.com/health: gitCommit = 30cb5cab0df7e551de7f3547e5b36b07924db1d2 (chua co d6ff186)
+
+### Files changed
+- DEVLOG.md (entry nay)
+
+### Chua lam / handoff (CEO)
+- Fix GitHub auth: PAT/credential manager hoac SSH remote, roi git push origin main
+- Sau push: 
+pm run deploy:render (RENDER_API_KEY trong D:\0.PROJECTS\.env.secrets neu script yeu cau)
+- Retest live inbox AI Newbie VN; verify health gitCommit starts with d6ff186
+
+---
 ## [2026-06-19] AI Newbie VN regression — churn / phone-recall / page-correction
 
 ### Đã làm
