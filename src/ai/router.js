@@ -228,6 +228,16 @@ async function generateReply(page, senderId, userText) {
     return { text: fb, layer: "fallback-no-llm" };
   }
 
+  // Owner 26/09/2026: dừng LLM tự trả lời khách. Mặc định chỉ tiếp nhận (mẫu cố định, không giá/cam kết)
+  // + đẩy lead cho người gọi lại. Bật lại LLM: CUSTOMER_REPLY_MODE=llm.
+  if ((process.env.CUSTOMER_REPLY_MODE || "intake-only") !== "llm") {
+    const intake = buildCustomerSafeSalesReply(page, "intake");
+    recordReply(page, senderId, text, intake);
+    maybeQueueLead(page, senderId, text, "intake-only");
+    maybeQueueCompleteLead(page, senderId, text, "intake-only", profile, meta);
+    return { text: intake, layer: `intake-only:${getVerticalId(page)}` };
+  }
+
   let ragContext = null;
   if (
     page.replyStrategy === "rag-mini" ||
