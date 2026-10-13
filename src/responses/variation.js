@@ -53,7 +53,7 @@ function pickCloser(seed, verticalId = "sabo-mt-services") {
     [
       "Anh/chị muốn em đi sâu giá, timeline hay tính năng ạ?",
       "Có gì thắc mắc thêm anh/chị cứ hỏi em tiếp ạ.",
-      "Muốn em gợi scope cụ thể thì nhắn em nhé!",
+      "Muốn em tư vấn chi tiết hơn thì nhắn em nhé!",
     ],
     seed,
   );

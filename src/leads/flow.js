@@ -100,12 +100,33 @@ function buildCollectedSummary(profile, sessionMeta = {}) {
   return lines.length ? lines.join("\n") : "(chưa có)";
 }
 
-function buildPostQualifyBlock(profile, sessionMeta = {}) {
+function buildPostQualifyBlock(profile, sessionMeta = {}, page = null) {
   const address = buildHonorificAddress(sessionMeta);
   const hasPhone = hasVerifiedPhone(profile);
+  const { getVerticalId } = require("../strategies/page-contracts");
+  const verticalId = page ? getVerticalId(page) : "sabo-mt-services";
   const contactLine = hasPhone
     ? `- Kết thúc nhẹ: team SABO đã có SĐT — sẽ liên hệ báo sát, không dump hotline.`
     : `- CHƯA CÓ SĐT/Zalo hợp lệ — KHÔNG nói "đã có SĐT" hay "team sẽ gọi". Kết bằng xin SĐT/Zalo MỘT lần nếu phù hợp.`;
+
+  if (verticalId === "billiards-ops") {
+    return `
+CHẾ ĐỘ TƯ VẤN SAU QUALIFY (BIDA / SABO ARENA — ƯU TIÊN CAO NHẤT):
+- Lead đã có nhu cầu${hasPhone ? " + contact" : ""}. Xưng hô: ${address}.
+- KHÔNG hỏi lại tên${hasPhone ? ", SĐT, email" : ""}, ngành/lĩnh vực — đã có trong hồ sơ bên dưới.
+- KHÔNG nói "em cần biết tên", "cho em xin tên", "không thể thấy tên".
+- Viết như chat Messenger: 2–4 câu tự nhiên — KHÔNG list (1)(2)(3).
+- Khách chỉ chào/cảm ơn → chào lại ngắn, KHÔNG nhắc lại essay tư vấn cũ.
+- Khách hỏi tính năng / giải đấu / cách dùng app → trả lời CỤ THỂ theo câu HIỆN TẠI.
+- Khách hỏi giá: App cơ thủ MIỄN PHÍ; Gói Club Pro cho CLB dùng thử 30 ngày MIỄN PHÍ (299k/tháng tặng 1M SPA).
+- TUYỆT ĐỐI CẤM nhắc tới "scope", "quy mô SME", "lộ trình SME", "MVP", "hosting", "SEO", "automation", "website".
+${contactLine}
+- CẤM TUYỆT ĐỐI nói "đã có SĐT" / "team sẽ gọi" nếu hồ sơ KHÔNG có SĐT hợp lệ.
+
+${buildPostQualifyPricingHint(hasPhone, verticalId)}
+`.trim();
+  }
+
   return `
 CHẾ ĐỘ TƯ VẤN SAU QUALIFY (ƯU TIÊN CAO NHẤT):
 - Lead đã có nhu cầu${hasPhone ? " + contact" : ""}. Xưng hô: ${address}.
@@ -114,14 +135,14 @@ CHẾ ĐỘ TƯ VẤN SAU QUALIFY (ƯU TIÊN CAO NHẤT):
 - Viết như chat Messenger: 2–4 câu tự nhiên — KHÔNG list (1)(2)(3) trừ khi khách xin breakdown.
 - Khách chỉ chào/cảm ơn → chào lại ngắn, KHÔNG nhắc lại essay tư vấn cũ.
 - Khách hỏi tư vấn / thắc mắc / so sánh → trả lời CỤ THỂ theo câu HIỆN TẠI — KHÔNG chỉ defer "team sẽ gọi".
-- Khách hỏi giá → KHÔNG số tiền cụ thể; giá tùy scope + xin Zalo/SĐT (hoặc team liên hệ qua contact đã lưu) để gửi báo giá chi tiết qua Zalo.
+- Khách hỏi giá → KHÔNG số tiền cụ thể; giá tùy nhu cầu + xin Zalo/SĐT (hoặc team liên hệ qua contact đã lưu) để gửi báo giá chi tiết qua Zalo.
 - Khách đổi nhu cầu (web→app, v.v.) → cập nhật tư vấn theo nhu cầu MỚI trong câu trả lời.
 - Mỗi lượt trả lời KHÁC lượt trước — đọc history, không lặp nguyên văn hay opener "Dạ anh/chị! Về...".
-- Có thể upsell nhẹ dịch vụ liên quan (hosting, SEO, automation) nếu phù hợp — không ép.
+- Có thể giới thiệu thêm dịch vụ liên quan nếu phù hợp — không ép.
 ${contactLine}
 - CẤM TUYỆT ĐỐI nói "đã có SĐT" / "team sẽ gọi" nếu hồ sơ KHÔNG có SĐT hợp lệ.
 
-${buildPostQualifyPricingHint(hasPhone)}
+${buildPostQualifyPricingHint(hasPhone, verticalId)}
 `.trim();
 }
 
@@ -158,7 +179,7 @@ ${vertical.forbidden.map((f) => `- ${f}`).join("\n")}
 `.trim();
 
   if (postQualify) {
-    block += `\n\n${buildPostQualifyBlock(profile, sessionMeta)}`;
+    block += `\n\n${buildPostQualifyBlock(profile, sessionMeta, page)}`;
     return block;
   }
 

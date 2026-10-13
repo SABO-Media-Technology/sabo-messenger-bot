@@ -133,19 +133,36 @@ function buildPreferenceReply(page, sessionMeta, userText = "") {
   const address = buildHonorificAddress(sessionMeta);
   const seed = hashSeed(`${sessionMeta?.profileName || ""}:${userText}:preference`);
   const opener = pickOpener(address, seed);
+  const verticalId = getVerticalId(page);
+
+  if (verticalId === "billiards-ops") {
+    const lines = [
+      `${opener} App SABO Arena có sẵn trên iOS và Android — cơ thủ tải miễn phí để xếp hạng ELO, tìm đối thủ và tham gia giải đấu. Quán bida dùng gói Club Pro để tạo giải tự động và quản lý bàn. Anh/chị đang muốn trải nghiệm app hay tìm hiểu cho quán ạ?`,
+      `${opener} SABO Arena tích hợp sẵn sơ đồ giải đấu nhánh thắng thua DE16/DE32, tự động ghép cặp, tính ELO và tích điểm SPA cho quán. Anh/chị quan tâm tính năng tổ chức giải hay quản lý quán ạ?`,
+    ];
+    return lines[seed % lines.length];
+  }
+
+  if (verticalId === "ai-education") {
+    const lines = [
+      `${opener} AI Newbie VN tập trung học AI cơ bản (ChatGPT, Prompt, Midjourney) ứng dụng thực tế. Anh/chị muốn học cá nhân hay đăng ký theo nhóm ạ?`,
+    ];
+    return lines[seed % lines.length];
+  }
+
   const kind = detectPreferenceScopeType(userText);
 
   if (kind === "app") {
     const lines = [
-      `${opener} App quản lý em hay gợi pilot 4–6 tuần: luồng lõi (đặt hàng, khách, báo cáo), Flutter + Supabase — mở rộng sau khi chạy ổn. Anh/chị muốn em gợi scope tính năng hay xin Zalo/SĐT để team tư vấn sát hơn ạ?`,
-      `${opener} Với app SME, em thường chốt vài tính năng must-have trước (khách, đơn, thông báo) rồi iterate — timeline ballpark 4–8 tuần tùy scope. Anh/chị ưu tiên quản khách hay vận hành nội bộ trước ạ?`,
+      `${opener} App quản lý em hay gợi pilot 4–6 tuần: luồng lõi (đặt hàng, khách, báo cáo) — mở rộng sau khi chạy ổn. Anh/chị muốn em tư vấn tính năng hay xin Zalo/SĐT để team tư vấn sát hơn ạ?`,
+      `${opener} Với app doanh nghiệp, em thường tư vấn chốt vài tính năng must-have trước (khách, đơn, thông báo) rồi phát triển tiếp — timeline ballpark 4–8 tuần. Anh/chị ưu tiên quản khách hay vận hành nội bộ trước ạ?`,
     ];
     return lines[seed % lines.length];
   }
 
   if (kind === "automation") {
     const lines = [
-      `${opener} Bot inbox em hay gợi: trả lời FAQ + thu SĐT/Zalo, handoff khi cần người — gắn Messenger/Zalo tuỳ kênh. Anh/chị muốn em gợi scope bot hay xin contact để team demo ạ?`,
+      `${opener} Bot inbox em hay gợi: trả lời FAQ + thu SĐT/Zalo, handoff khi cần người — gắn Messenger/Zalo tuỳ kênh. Anh/chị muốn em tư vấn tính năng bot hay xin contact để team demo ạ?`,
       `${opener} Automation inbox giúp trả lời nhanh 24/7 và gom lead — thường đi kèm web hoặc landing thu form. Anh/chị đang inbox nhiều ở Facebook hay Zalo ạ?`,
     ];
     return lines[seed % lines.length];
@@ -180,7 +197,7 @@ function buildScopeReply(page, sessionMeta, userText = "", scopeType = "web-lead
   if (scopeType === "web-lead" || verticalId === "sabo-mt-services") {
     const lines = [
       `${opener} Scope web thu lead thường gồm: trang chủ + giới thiệu dịch vụ, 1 landing thu form, nút Zalo/Messenger, SEO cơ bản. Timeline ballpark 3–6 tuần tùy số trang và tích hợp thanh toán. Anh/chị muốn bắt đầu landing thu lead hay full web bán hàng ạ?`,
-      `${opener} Em gợi scope web SME: 3–5 trang (home, dịch vụ, liên hệ), form thu SĐT, kết nối Zalo, hosting + SSL. Làm nhanh ~3–4 tuần, full giỏ hàng ~6–8 tuần. Anh/chị ưu tiên thu lead hay bán online trước ạ?`,
+      `${opener} Em gợi web giới thiệu & thu khách: 3–5 trang (home, dịch vụ, liên hệ), form thu SĐT, kết nối Zalo. Làm nhanh ~3–4 tuần, full giỏ hàng ~6–8 tuần. Anh/chị ưu tiên thu lead hay bán online trước ạ?`,
     ];
     return lines[seed % lines.length];
   }

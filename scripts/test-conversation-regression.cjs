@@ -298,14 +298,50 @@ async function testBilliardsNoAgencyScopeLeak() {
 
   const LEAK_PATTERNS = /quy mô sme|bản chạy nhanh rồi iterate|muốn em gợi scope cụ thể|gợi scope và lộ trình phù hợp|web bán hàng|full giỏ hàng/i;
 
-  for (const t of testTexts) {
-    const fallback = buildPostQualifyFallback(page, profile, meta, t);
-    assert(!LEAK_PATTERNS.test(fallback), `Billiards page leaked SME agency copy on input "${t}": ${fallback}`);
-    assert(/bida|billiards|giải|sabo arena|đặt bàn|clb/i.test(fallback), `Billiards page must retain billiards context: ${fallback}`);
+  const { buildPreferenceReply } = require("../src/sales/discovery");
+  const { buildPricingHandoffReply, buildPricingPolicyPromptBlock } = require("../src/sales/pricing-policy");
+  const { buildSystemPrompt } = require("../src/ai/prompt-builder");
+  const { selectDifyAppToken } = require("../src/ai/dify-client");
 
-    const scopeReply = buildScopeReply(page, meta, t, "web-lead");
-    assert(!LEAK_PATTERNS.test(scopeReply), `Billiards scope reply leaked SME agency copy: ${scopeReply}`);
-    assert(/billiards|bida|sabo arena|giải/i.test(scopeReply), `Billiards scope reply must retain billiards context: ${scopeReply}`);
+  const billiardsPageIds = ["569652129566651", "118356497898536"];
+
+  for (const pid of billiardsPageIds) {
+    const bPage = getPage(pid);
+    if (!bPage) continue;
+
+    for (const t of testTexts) {
+      const fallback = buildPostQualifyFallback(bPage, profile, meta, t);
+      assert(!LEAK_PATTERNS.test(fallback), `Page ${pid} leaked SME agency copy on input "${t}": ${fallback}`);
+      assert(/bida|billiards|giải|sabo arena|đặt bàn|clb/i.test(fallback), `Page ${pid} must retain billiards context: ${fallback}`);
+
+      const scopeReply = buildScopeReply(bPage, meta, t, "web-lead");
+      assert(!LEAK_PATTERNS.test(scopeReply), `Page ${pid} scope reply leaked SME agency copy: ${scopeReply}`);
+      assert(/billiards|bida|sabo arena|giải/i.test(scopeReply), `Page ${pid} scope reply must retain billiards context: ${scopeReply}`);
+
+      const prefReply = buildPreferenceReply(bPage, meta, "app bida");
+      assert(!LEAK_PATTERNS.test(prefReply), `Page ${pid} preference reply leaked SME agency copy: ${prefReply}`);
+      assert(!/flutter|supabase|4–8 tuần|pilot 4–6/i.test(prefReply), `Page ${pid} must not leak agency stack: ${prefReply}`);
+      assert(/sabo arena|bida|giải/i.test(prefReply), `Page ${pid} preference reply must be Arena bida: ${prefReply}`);
+    }
+
+    // Test pricing reply
+    const pricingReply = buildPricingHandoffReply(bPage, profile, meta);
+    assert(!/giá phụ thuộc scope/i.test(pricingReply), `Page ${pid} pricing reply must not say scope: ${pricingReply}`);
+    assert(/miễn phí|299k|club pro|sabo arena/i.test(pricingReply), `Page ${pid} pricing reply must mention Arena/Club Pro: ${pricingReply}`);
+
+    // Test Dify App token
+    const difyNormal = selectDifyAppToken(bPage, "hướng dẫn tải app");
+    assert(difyNormal.botKey === "arena", `Page ${pid} normal inquiry must route to arena dify bot, got: ${difyNormal.botKey}`);
+    const difyB2B = selectDifyAppToken(bPage, "tôi muốn mua gói pro mở clb bida");
+    assert(difyB2B.botKey === "arena_b2b", `Page ${pid} B2B inquiry must route to arena_b2b dify bot, got: ${difyB2B.botKey}`);
+
+    // Test System Prompt
+    const sysPrompt = buildSystemPrompt({ page: bPage, sessionMeta: meta, leadProfile: profile });
+    assert(!/phù hợp quy mô sme/i.test(sysPrompt), `Page ${pid} system prompt must NOT instruct "phù hợp quy mô SME"`);
+    assert(!/làm rõ scope/i.test(sysPrompt), `Page ${pid} system prompt must NOT contain "làm rõ scope"`);
+    assert(!/giá tùy scope/i.test(sysPrompt), `Page ${pid} system prompt must NOT contain "giá tùy scope"`);
+    assert(!/ưu tiên bản chạy nhanh rồi iterate/i.test(sysPrompt), `Page ${pid} system prompt must NOT contain iterate copy`);
+    assert(sysPrompt.includes("UYỂN NHI — Đại sứ hỗ trợ cộng đồng cơ thủ và CLB Bida SABO ARENA"), `Page ${pid} must use Uyển Nhi Arena persona`);
   }
 
   const { buildVerticalBehaviorBlock } = require("../src/ai/prompt-builder");

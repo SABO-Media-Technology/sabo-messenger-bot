@@ -59,8 +59,17 @@ function isB2BClubInquiry(text) {
  */
 function selectDifyAppToken(page, userText) {
   const project = (page.projectSlug || "").toLowerCase();
+  const pageId = String(page.id || "");
+  const { getVerticalId } = require("../strategies/page-contracts");
+  const verticalId = getVerticalId(page);
 
-  if (project === "sabo-arena" || page.id === "569652129566651") {
+  if (
+    project === "sabo-arena" ||
+    project === "sabo-billiards" ||
+    pageId === "569652129566651" ||
+    pageId === "118356497898536" ||
+    verticalId === "billiards-ops"
+  ) {
     if (isB2BClubInquiry(userText)) {
       return {
         token: DIFY_APP_TOKENS.ARENA_B2B,

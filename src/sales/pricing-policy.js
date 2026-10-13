@@ -69,6 +69,21 @@ function buildPricingHandoffReply(page, profile, sessionMeta) {
   const { getVerticalId } = require("../strategies/page-contracts");
   const verticalId = getVerticalId(page);
 
+  if (verticalId === "billiards-ops") {
+    if (hasPhone) {
+      const lines = [
+        `${opener} App SABO Arena cơ thủ tải và dùng miễn phí; quán bida có gói Club Pro dùng thử 30 ngày (chính thức 299k/tháng) — team sẽ liên hệ qua Zalo/SĐT anh/chị đã lưu để hướng dẫn chi tiết nhé ạ!`,
+        `${opener} Em ghi nhận rồi ạ — lệ phí giải đấu hoặc giá bàn tùy CLB quy định, còn app cơ thủ dùng hoàn toàn miễn phí. Team sẽ liên hệ qua SĐT/Zalo đã lưu để báo sát hơn nhé ạ!`,
+      ];
+      return lines[seed % lines.length];
+    }
+    const lines = [
+      `${opener} App SABO Arena cơ thủ tải và tham gia giải đấu miễn phí. Quán bida đăng ký gói Club Pro có 30 ngày dùng thử miễn phí (chính thức 299k/tháng tặng 1 triệu SPA/tháng). Cho em xin SĐT hoặc Zalo để team hỗ trợ chi tiết nhé ạ!`,
+      `${opener} Dạ cơ thủ dùng app SABO Arena hoàn toàn miễn phí ạ! Nếu quán mình cần tư vấn gói Club Pro tổ chức giải đấu, cho em xin SĐT/Zalo để team tư vấn cụ thể nhé ạ!`,
+    ];
+    return lines[seed % lines.length];
+  }
+
   if (verticalId === "ai-education") {
     if (hasPhone) {
       const lines = [
@@ -99,7 +114,23 @@ function buildPricingHandoffReply(page, profile, sessionMeta) {
   return lines[seed % lines.length];
 }
 
-function buildPricingPolicyPromptBlock() {
+function buildPricingPolicyPromptBlock(verticalId = "sabo-mt-services") {
+  if (verticalId === "billiards-ops") {
+    return `
+CHÍNH SÁCH BÁO GIÁ BIDA / SABO ARENA:
+- Cơ thủ tải app SABO Arena, xếp hạng ELO, tìm đối thủ: HOÀN TOÀN MIỄN PHÍ.
+- Quán bida / CLB: Gói Club Pro dùng thử 30 ngày MIỄN PHÍ (tặng 100.000 điểm SPA vào quỹ thưởng). Giá chính thức: 299.000đ/tháng (cấp 1.000.000 SPA) hoặc 2.990.000đ/năm (cấp 12.000.000 SPA).
+- Đặt bàn bida / lệ phí giải đấu: tùy CLB quy định cụ thể.
+- TUYỆT ĐỐI KHÔNG dùng từ "scope", "quy mô SME", "timeline báo giá". Xin SĐT/Zalo để hỗ trợ tạo giải hoặc kích hoạt 30 ngày dùng thử Club Pro.`.trim();
+  }
+
+  if (verticalId === "ai-education") {
+    return `
+CHÍNH SÁCH HỌC PHÍ AI NEWBIE:
+- Không báo mức học phí cố định trên chat — học phí tùy khóa học và lộ trình.
+- Xin SĐT/Zalo để team tư vấn lộ trình và học phí chi tiết.`.trim();
+  }
+
   return `
 CHÍNH SÁCH BÁO GIÁ (BẮT BUỘC — CEO policy):
 - KHÔNG đưa số tiền cụ thể (VND, triệu, tr, k, đ/hình, gói Basic/Advanced, bảng giá tự bịa).

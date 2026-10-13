@@ -147,9 +147,9 @@ function consultSnippet(need, seed = 0, userText = "", hasPhone = false, vertica
 
       "Web bán hàng có thể đi landing + form/Zalo thu lead, hoặc full giỏ hàng + thanh toán — tùy mục tiêu doanh thu hay thu khách trước.",
 
-      "Em hay gợi web SME bắt đầu từ trang giới thiệu + kênh liên hệ rõ, sau đó mới nâng giỏ hàng khi traffic ổn.",
+      "Em hay gợi web bắt đầu từ trang giới thiệu + kênh liên hệ rõ, sau đó mới nâng giỏ hàng khi lượng khách ổn định.",
 
-      "Website thì scope trang, tích hợp thanh toán và quản đơn là 3 điểm ảnh hưởng giá và timeline nhất.",
+      "Website thì số trang, tích hợp thanh toán và quản đơn là các điểm ảnh hưởng chi phí và thời gian nhất.",
 
     ];
 
@@ -158,10 +158,10 @@ function consultSnippet(need, seed = 0, userText = "", hasPhone = false, vertica
   }
 
   const tips = [
-    "Em có thể gợi scope và lộ trình phù hợp quy mô SME — ưu tiên bản chạy nhanh rồi iterate.",
+    "Em có thể tư vấn giải pháp và lộ trình phù hợp nhu cầu anh/chị — ưu tiên bản chạy nhanh rồi phát triển thêm.",
     hasPhone
-      ? "Tùy mục tiêu kinh doanh, em sẽ gợi hướng MVP hoặc gói vertical — team đã có SĐT để báo sát hơn."
-      : "Tùy mục tiêu kinh doanh, em sẽ gợi hướng MVP hoặc gói vertical — cho em xin SĐT/Zalo để team báo sát nhé.",
+      ? "Tùy mục tiêu kinh doanh, em sẽ gợi hướng triển khai phù hợp — team đã có SĐT để báo sát hơn."
+      : "Tùy mục tiêu kinh doanh, em sẽ gợi hướng triển khai phù hợp — cho em xin SĐT/Zalo để team báo sát nhé.",
   ];
 
   return tips[seed % tips.length];
@@ -371,8 +371,8 @@ function buildPostQualifyFallback(page, profile, sessionMeta, userText) {
 
 
 
-function buildPostQualifyPricingHint(hasPhone = true) {
-  return buildPricingPolicyPromptBlock();
+function buildPostQualifyPricingHint(hasPhone = true, verticalId = "sabo-mt-services") {
+  return buildPricingPolicyPromptBlock(verticalId);
 }
 
 
