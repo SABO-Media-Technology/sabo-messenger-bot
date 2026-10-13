@@ -9,9 +9,12 @@ const { logger, requestLogger } = require("./utils/logger");
 const { isLlmConfigured, getLlmConfig, listLlmProviders } = require("./ai/llm");
 const { isHermesEnabled, getHermesConfig, probeHermesHealth } = require("./ai/hermes-client");
 const { isRagConfigured } = require("./ai/rag");
+const { isDifyEnabled } = require("./ai/dify-client");
 const { isLeadQueueConfigured } = require("./leads/queue");
-const { stats: sessionStats } = require("./session/store");
 const { startInboxPoller, pollerStats } = require("./inbox/poller");
+const { startFollowupEngine } = require("./leads/followup");
+const { startTelegramBot } = require("./channels/telegramBot");
+const { stats: sessionStats } = require("./session/store");
 
 const PORT = process.env.PORT || 3000;
 
@@ -55,6 +58,8 @@ app.get("/health", async (_req, res) => {
         : { enabled: false },
       brainRag: isRagConfigured(),
       brainRagUrl: process.env.BRAIN_RAG_URL || "http://127.0.0.1:3012",
+      dify: isDifyEnabled(),
+      difyUrl: process.env.DIFY_API_URL || "http://127.0.0.1/v1",
       leadQueue: isLeadQueueConfigured(),
       activeThreads: sessionStats().activeThreads,
       inboxPoller: pollerStats(),
@@ -115,6 +120,8 @@ async function start() {
       inboxPoller: pollerStats().enabled,
     });
     startInboxPoller();
+    startFollowupEngine();
+    startTelegramBot();
   });
 }
 

@@ -264,7 +264,7 @@ Bot **không** dùng một script chung — mỗi **vertical** (business lane) c
 | `src/ai/templates.js` | `VERTICAL_TEMPLATES` — keyword replies theo vertical |
 | `src/ai/router.js` | Layer tag `strategy:verticalId`; billiards handoff **không** auto hotline |
 
-**Forbidden (global):** không đưa hotline `0798893333` trừ khi khách hỏi rõ; không bảo "gọi điện" — team chủ động liên hệ sau khi có contact.
+**Forbidden (global):** không đưa hotline của trang (`page.hotline` qua `src/hotline.js`: trang bida App Quản lý Giải Đấu Billiards + SABO Billiards Vũng Tàu = `0961 167 717`; các trang khác = `0798893333`) trừ khi khách hỏi rõ; không bảo "gọi điện" — team chủ động liên hệ sau khi có contact.
 
 ### Conversation UX — sales flow tự nhiên (CEO 2026-06-18, tham chiếu Highvision)
 
@@ -287,7 +287,7 @@ Bot phải hành xử như nhân viên sales VN thật, **không** interrogation
 **Cấm tuyệt đối trong reply:**
 
 - `em cần biết tên`, `cho em xin tên`, `không thể thấy tên user`
-- Dump hotline `0798893333` khi chưa được hỏi
+- Dump hotline (`0798893333` / bida `0961 167 717`) khi chưa được hỏi
 - Bảo khách "gọi điện" / "gọi hotline"
 
 ### Progressive lead collection (`src/leads/flow.js`)
@@ -326,7 +326,7 @@ npm run test:lead-flow
 | Thu lead chủ động | Qualify nhu cầu trước → xin SĐT/Zalo gửi báo giá |
 | Tên khách | Lấy từ Facebook Graph API — không hỏi tên nếu đã có |
 | SABO gọi khách | Không bảo khách "gọi hotline" hay "liên hệ qua SĐT công ty" |
-| Hotline `0798893333` | Chỉ khi khách **hỏi rõ** hotline/số văn phòng, hoặc menu "Gọi ngay" |
+| Hotline theo trang (bida `0961 167 717`, khác `0798893333`) | Chỉ khi khách **hỏi rõ** hotline/số văn phòng, hoặc menu "Gọi ngay" |
 | Layer 0 templates | `giá`/`ngân sách` → **pricing-handoff** (no VND); `sản phẩm` → list + qualify |
 | Thứ tự thu | **need → contact** (một field/lượt); name từ FB, không bắt buộc hỏi |
 

@@ -134,6 +134,17 @@ async function processEvent(pageId, event) {
 
 
 
+  // Human Handoff: Detect when Page Admin replies from Meta Business Suite / Page Inbox
+  if (event.message?.is_echo) {
+    const customerId = event.recipient?.id;
+    if (customerId) {
+      const { activateHumanHandoff } = require("./inbox/handoff");
+      activateHumanHandoff(pageId, customerId, 30, "admin_echo");
+      logger.info("admin_echo_detected_handoff_activated", { pageId, customerId });
+    }
+    return;
+  }
+
   const senderId = event.sender?.id;
 
   if (!senderId) return;

@@ -169,22 +169,14 @@ function buildCustomerSafeSalesReply(page, mode = "intake") {
 
   const contract = getPageContract(page);
 
-  const isVenue = contract.persona === "venue";
-
-
+  const isVenue = contract.persona === "venue" || contract.vertical === "billiards-ops";
 
   let reply;
-
   if (isVenue) {
-
     reply =
-
       mode === "consult"
-
-        ? "Dạ em chưa hỗ trợ được phần đó ạ. Anh/chị cần đặt bàn hay đăng ký giải thì nhắn em, team SABO phản hồi ngay."
-
-        : "Dạ em hỗ trợ đặt bàn/giải thôi ạ. Anh/chị cần gì và SĐT/Zalo để team liên hệ nhé.";
-
+        ? "Dạ em hỗ trợ giải đấu bida và app SABO Arena ạ. Quán mình đang cần tổ chức giải hay anh/chị cần đặt bàn thì nhắn em nhé!"
+        : "Dạ em hỗ trợ đặt bàn và giải đấu bida ạ. Anh/chị cần gì và SĐT/Zalo để team liên hệ hỗ trợ nhé.";
   } else {
 
     reply =

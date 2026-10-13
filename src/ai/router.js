@@ -3,6 +3,7 @@
  */
 const { chatCompletion, isLlmConfigured } = require("./llm");
 const { isHermesEnabled, chatHermes } = require("./hermes-client");
+const { chatDify, isDifyEnabled, selectDifyAppToken } = require("./dify-client");
 const {
   inspectCustomerInput,
   inspectCustomerOutput,
@@ -228,9 +229,10 @@ async function generateReply(page, senderId, userText) {
     return { text: fb, layer: "fallback-no-llm" };
   }
 
-  // Owner 26/09/2026: dừng LLM tự trả lời khách. Mặc định chỉ tiếp nhận (mẫu cố định, không giá/cam kết)
-  // + đẩy lead cho người gọi lại. Bật lại LLM: CUSTOMER_REPLY_MODE=llm.
-  if ((process.env.CUSTOMER_REPLY_MODE || "intake-only") !== "llm") {
+  const replyMode = (process.env.CUSTOMER_REPLY_MODE || "dify").toLowerCase();
+
+  // If set explicitly to intake-only, use fixed safe template
+  if (replyMode === "intake-only") {
     const intake = buildCustomerSafeSalesReply(page, "intake");
     recordReply(page, senderId, text, intake);
     maybeQueueLead(page, senderId, text, "intake-only");
@@ -253,7 +255,35 @@ async function generateReply(page, senderId, userText) {
   let replyVia = "llm";
 
   try {
-    if (isHermesEnabled()) {
+    // 1. Primary Knowledge Brain: Dify (SSoT Vertex AI Datasets)
+    if (replyMode === "dify" && isDifyEnabled()) {
+      try {
+        const botTarget = selectDifyAppToken(page, text);
+        const convId = meta.difyConversations?.[botTarget.botKey] || null;
+
+        const difyRes = await chatDify({
+          page,
+          senderId,
+          userText: text,
+          conversationId: convId,
+        });
+        if (difyRes?.answer) {
+          reply = difyRes.answer;
+          replyVia = "dify";
+          layer = `dify:${difyRes.domain}`;
+          if (difyRes.conversationId) {
+            meta.difyConversations = meta.difyConversations || {};
+            meta.difyConversations[difyRes.botKey] = difyRes.conversationId;
+            setSessionMeta(page.id, senderId, meta, page.projectSlug);
+          }
+        }
+      } catch (difyErr) {
+        logger.warn("dify_chat_failover", { pageId: page.id, error: difyErr.message });
+      }
+    }
+
+    // 2. Secondary: Hermes Gateway
+    if (!reply && isHermesEnabled()) {
       try {
         reply = await chatHermes({
           page,
@@ -275,7 +305,8 @@ async function generateReply(page, senderId, userText) {
       }
     }
 
-    if (!reply) {
+    // 3. Fallback: Direct LLM (Ollama / Groq / OpenAI)
+    if (!reply && isLlmConfigured()) {
       reply = await chatCompletion(
         systemPrompt,
         [...history, { role: "user", content: text }],

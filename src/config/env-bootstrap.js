@@ -9,7 +9,9 @@ const axios = require("axios");
 const { logger } = require("../utils/logger");
 const { PAGE_DEFINITIONS } = require("../pages");
 
-const MONOREPO_ROOT = process.env.MONOREPO_ROOT || "D:\\0.PROJECTS";
+const MONOREPO_ROOT =
+  process.env.MONOREPO_ROOT ||
+  (fs.existsSync("/home/jesse/work") ? "/home/jesse/work" : "D:\\0.PROJECTS");
 const GRAPH_VERSION = "v21.0";
 
 const ENV_SOURCES = [

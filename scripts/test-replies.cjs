@@ -96,7 +96,7 @@ function scoreReply(reply, page, testCase) {
 
     reply.layer !== "template" &&
 
-    /0798893333/.test(text) &&
+    /0798893333|0961\s?167\s?717/.test(text) &&
 
     !/hotline|số hotline/i.test(testCase.text || "")
 

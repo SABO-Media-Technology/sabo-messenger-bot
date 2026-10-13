@@ -280,6 +280,42 @@ async function testFallbackNoReaskPhone() {
   console.log("  fallback-no-llm + phone: OK");
 }
 
+async function testBilliardsNoAgencyScopeLeak() {
+  loadPageRegistry();
+  const page = getPage("569652129566651"); // App Quản lý Giải Đấu Billiards
+  assert(page, "App Billiards page must exist");
+
+  const testTexts = [
+    "Em nghe rồi ạ",
+    "Tư vấn giúp em",
+    "App này như thế nào",
+    "Cho anh hỏi dịch vụ",
+    "Gợi scope giúp em",
+  ];
+
+  const profile = { ...emptyProfile(), phone: "0961167717", qualified: true, need: "quản lý giải" };
+  const meta = { honorific: "anh/chị", profileName: "Long Sang", fbProfileFetched: true };
+
+  const LEAK_PATTERNS = /quy mô sme|bản chạy nhanh rồi iterate|muốn em gợi scope cụ thể|gợi scope và lộ trình phù hợp|web bán hàng|full giỏ hàng/i;
+
+  for (const t of testTexts) {
+    const fallback = buildPostQualifyFallback(page, profile, meta, t);
+    assert(!LEAK_PATTERNS.test(fallback), `Billiards page leaked SME agency copy on input "${t}": ${fallback}`);
+    assert(/bida|billiards|giải|sabo arena|đặt bàn|clb/i.test(fallback), `Billiards page must retain billiards context: ${fallback}`);
+
+    const scopeReply = buildScopeReply(page, meta, t, "web-lead");
+    assert(!LEAK_PATTERNS.test(scopeReply), `Billiards scope reply leaked SME agency copy: ${scopeReply}`);
+    assert(/billiards|bida|sabo arena|giải/i.test(scopeReply), `Billiards scope reply must retain billiards context: ${scopeReply}`);
+  }
+
+  const { buildVerticalBehaviorBlock } = require("../src/ai/prompt-builder");
+  const verticalBlock = buildVerticalBehaviorBlock(page);
+  assert(verticalBlock.includes("HÀNH VI BIDA"), "Billiards prompt must use billiards behavior block, not fall back to sabo-mt");
+  assert(!verticalBlock.includes("HÀNH VI SABO M&T"), "Billiards prompt must NOT contain sabo-mt behavior block");
+
+  console.log("  billiards persona isolation (zero SME agency copy leak): OK");
+}
+
 async function main() {
   console.log("\n=== Conversation Regression Tests ===\n");
   testPhoneValidation();
@@ -290,6 +326,7 @@ async function main() {
   await testScopeRequest();
   await testServicesWithPhone();
   await testFallbackNoReaskPhone();
+  await testBilliardsNoAgencyScopeLeak();
   console.log("\nAll conversation regression tests passed.\n");
 }
 

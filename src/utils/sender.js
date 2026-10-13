@@ -25,6 +25,7 @@ function shouldSkipDuplicateSend(recipientId, text) {
 }
 const {
   getGreetingText,
+  getPageIcebreakers,
   getPersistentMenu,
   getGetStartedPayload,
 } = require("../responses/greeting");
@@ -76,20 +77,14 @@ async function setGetStarted(pageId, accessToken) {
  * Ice breakers replace deprecated greeting on Graph API v21+.
  */
 function buildIceBreakers(pageId) {
-  const greetingText = getGreetingText(pageId).replace(/\{\{user_first_name\}\}/g, "bạn");
+  const items = getPageIcebreakers(pageId);
   return [
     {
       locale: "default",
-      call_to_actions: [
-        {
-          question: greetingText.slice(0, 80),
-          payload: "GET_STARTED",
-        },
-        {
-          question: "💬 Tư vấn dịch vụ",
-          payload: "REQUEST_CONSULT",
-        },
-      ],
+      call_to_actions: items.slice(0, 4).map((item) => ({
+        question: item.question.slice(0, 80),
+        payload: item.payload,
+      })),
     },
   ];
 }

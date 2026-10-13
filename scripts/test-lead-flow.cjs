@@ -328,10 +328,10 @@ function testNameRefusalAndFbProfile() {
 function testProductInquiryTemplate() {
   const hit = matchTemplate("ngoài học ra thì còn sản phẩm gì", { projectSlug: "ainewbie" });
   assert(hit && /sđt|zalo/i.test(hit), "product inquiry asks contact");
-  assert(!hit.includes("0798893333"), "no hotline dump");
+  assert(!/0798893333|0961\s?167\s?717/.test(hit), "no hotline dump");
 
   const budget = matchTemplate("ngân sách 100k làm web được không", { projectSlug: "sabo-mt" });
-  assert(budget && !/0798893333/.test(budget), "budget question no hotline");
+  assert(budget && !/0798893333|0961\s?167\s?717/.test(budget), "budget question no hotline");
 }
 
 function testTemplateSkipsIntakeWhenQualified() {
@@ -346,10 +346,33 @@ function testTemplateSkipsIntakeWhenQualified() {
   assert(hit === null, "qualified lead skips intake template — LLM consults instead");
 }
 
+function testPerPageHotline() {
+  const { PAGE_DEFINITIONS } = require("../src/pages");
+  const { getHotline, BIDA_HOTLINE, DEFAULT_HOTLINE } = require("../src/hotline");
+  const { POSTBACK_REPLIES } = require("../src/handlers/welcome");
+  const { HOTLINE_RULE } = require("../src/ai/templates");
+  const { buildSystemPrompt } = require("../src/ai/prompt-builder");
+  const BIDA_IDS = ["569652129566651", "118356497898536"]; // App Quản lý Giải Đấu Billiards, SABO Billiards Vũng Tàu
+  assert(BIDA_HOTLINE === "0961 167 717", "bida hotline value");
+  assert(DEFAULT_HOTLINE === "0798893333", "default hotline value");
+  for (const def of PAGE_DEFINITIONS) {
+    const expected = BIDA_IDS.includes(def.id) ? BIDA_HOTLINE : DEFAULT_HOTLINE;
+    const other = expected === BIDA_HOTLINE ? DEFAULT_HOTLINE : BIDA_HOTLINE;
+    assert(getHotline(def) === expected, `hotline for ${def.slug}`);
+    const sys = getSystemPrompt(def);
+    assert(sys.includes(expected) && !sys.includes(other) && !sys.includes("{{HOTLINE}}"), `system prompt hotline for ${def.slug}`);
+    const sys2 = buildSystemPrompt({ page: def });
+    assert(sys2.includes(expected) && !sys2.includes(other) && !sys2.includes("{{HOTLINE}}"), `prompt-builder hotline for ${def.slug}`);
+    assert(POSTBACK_REPLIES.CALL_SUPPORT(def).includes(expected), `CALL_SUPPORT hotline for ${def.slug}`);
+    assert(HOTLINE_RULE.reply(def).includes(expected), `hotline template for ${def.slug}`);
+  }
+  assert(getHotline(null) === DEFAULT_HOTLINE, "missing page falls back to default");
+}
+
 function testBilliardsNoHotlineGreeting() {
   const page = { projectSlug: "sabo-billiards" };
   const contract = getPageContract(page);
-  assert(!contract.greetingIntro.includes("0798893333"), "billiards greeting no hotline");
+  assert(!/0798893333|0961\s?167\s?717/.test(contract.greetingIntro), "billiards greeting no hotline");
   assert(contract.persona === "venue", "billiards venue persona");
   assert(!/xin tên/i.test(contract.greetingIntro), "billiards greeting no ask name");
 }
@@ -426,7 +449,7 @@ async function testSaboMtPostQualifyMultiTurn() {
 async function testMultiTurnAinewbie() {
   loadPageRegistry();
   const page = getPage("569671719553461");
-  const senderId = "test_lead_flow_multi";
+  const senderId = `test_lead_flow_multi_${Date.now()}`;
   clearThread(page.id, senderId);
 
   const turns = [
@@ -468,6 +491,8 @@ async function main() {
   console.log("  template skips intake when qualified: OK");
   testBilliardsNoHotlineGreeting();
   console.log("  billiards no-hotline greeting: OK");
+  testPerPageHotline();
+  console.log("  per-page hotline (bida 0961 167 717 / others 0798893333): OK");
   testVerticalTemplates();
   console.log("  vertical templates: OK");
   testPromptHasPersonaAndVertical();

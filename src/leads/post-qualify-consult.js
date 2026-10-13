@@ -23,7 +23,7 @@ const {
 
 } = require("./extract");
 
-const { pickOpener, pickCloser, hashSeed } = require("../responses/variation");
+const { pickOpener, pickCloser, pickVariant, hashSeed } = require("../responses/variation");
 const { isDiscoveryQuestion, buildDiscoveryReply } = require("../sales/discovery");
 const { hasVerifiedPhone } = require("./extract");
 const {
@@ -104,9 +104,17 @@ function messageMentionsApp(text) {
 }
 
 function consultSnippet(need, seed = 0, userText = "", hasPhone = false, verticalId = "sabo-mt-services") {
-
   const n = (need || "").toLowerCase();
   const text = (userText || "").toLowerCase();
+
+  if (verticalId === "billiards-ops") {
+    const tips = [
+      "Bên em có app SABO Arena hỗ trợ tạo giải đấu bida tự động (sơ đồ nhánh thắng nhánh thua DE16, DE32), bảng xếp hạng ELO và cấp quỹ thưởng SPA.",
+      "CLB bida đăng ký dùng thử 30 ngày Club Pro được tặng ngay 100.000 điểm SPA vào quỹ thưởng để tổ chức giải kéo khách.",
+      "App SABO Arena tích hợp sẵn quản lý bàn, order dịch vụ và kết nối cộng đồng cơ thủ giao lưu ELO cân trình.",
+    ];
+    return tips[seed % tips.length];
+  }
 
   if (verticalId === "ai-education") {
     const tips = [
@@ -274,8 +282,17 @@ function buildPostQualifyFallback(page, profile, sessionMeta, userText) {
   }
 
   const opener = pickOpener(address, seed);
-
-  const closer = pickCloser(seed + 1);
+  const closer =
+    verticalId === "billiards-ops"
+      ? pickVariant(
+          [
+            "Anh/chị đang cần hỗ trợ cho quán bida hay muốn tham gia giải đấu ạ?",
+            "Anh/chị cần tư vấn tổ chức giải hay đặt bàn cứ nhắn em nhé!",
+            "Có gì thắc mắc về app hay giải đấu anh/chị cứ hỏi em tiếp ạ.",
+          ],
+          seed + 1,
+        )
+      : pickCloser(seed + 1);
 
 
 
@@ -289,6 +306,11 @@ function buildPostQualifyFallback(page, profile, sessionMeta, userText) {
 
     const tip = consultSnippet(need, seed, text, hasPhone, verticalId);
 
+    const consultPrompt =
+      verticalId === "billiards-ops"
+        ? "Anh/chị muốn tìm hiểu tính năng giải đấu hay gói dùng thử CLB ạ?"
+        : "Anh/chị muốn em gợi scope cụ thể hơn không ạ?";
+
     const lines = hasPhone
       ? [
           `${opener} ${tip} ${handoff} Anh/chị cứ hỏi thêm em trả lời tiếp nhé!`,
@@ -296,7 +318,7 @@ function buildPostQualifyFallback(page, profile, sessionMeta, userText) {
         ]
       : [
           `${opener} ${tip} ${handoff}`,
-          `${opener} ${tip} Anh/chị muốn em gợi scope cụ thể hơn không ạ?`,
+          `${opener} ${tip} ${consultPrompt}`,
         ];
 
     return lines[seed % lines.length];
@@ -337,7 +359,9 @@ function buildPostQualifyFallback(page, profile, sessionMeta, userText) {
 
         `${opener} ${tip} ${closer}`,
 
-        `${opener} ${tip} Anh/chị muốn em đi sâu giá, timeline hay tính năng ạ?`,
+        verticalId === "billiards-ops"
+          ? `${opener} ${tip} Anh/chị muốn tìm hiểu tính năng giải đấu hay gói dùng thử CLB ạ?`
+          : `${opener} ${tip} Anh/chị muốn em đi sâu giá, timeline hay tính năng ạ?`,
 
       ];
 

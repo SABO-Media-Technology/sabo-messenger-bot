@@ -28,7 +28,7 @@ function runPredeployGate() {
 
 runPredeployGate();
 
-const MONOREPO_ROOT = process.env.MONOREPO_ROOT || "D:\\0.PROJECTS";
+const MONOREPO_ROOT = process.env.MONOREPO_ROOT || "/home/jesse/work";
 
 const { bootstrapEnv } = require("../src/config/env-bootstrap");
 const { loadPageRegistry, PAGE_DEFINITIONS } = require("../src/pages");
@@ -36,7 +36,7 @@ const { loadPageRegistry, PAGE_DEFINITIONS } = require("../src/pages");
 const API_KEY = process.env.RENDER_API_KEY;
 const OWNER_ID = process.env.RENDER_OWNER_ID || "tea-d8psrsu7r5hc7397m20g";
 const SERVICE_ID = process.env.RENDER_SERVICE_ID || "srv-d8psv69194ac739luu00";
-const REPO = process.env.RENDER_REPO || "https://github.com/longsangsabo2025/sabo-messenger-bot";
+const REPO = process.env.RENDER_REPO || "https://github.com/SABO-Media-Technology/sabo-messenger-bot";
 const BRANCH = process.env.RENDER_BRANCH || "main";
 const SERVICE_NAME = "sabo-messenger-bot";
 const ROOT_DIR = process.env.RENDER_ROOT_DIR || "";

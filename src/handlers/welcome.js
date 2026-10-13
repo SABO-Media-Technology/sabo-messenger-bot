@@ -2,10 +2,11 @@ const { generateReply } = require("../ai/router");
 const { sendText } = require("../utils/sender");
 const { logger } = require("../utils/logger");
 const { getGetStartedPayload } = require("../responses/greeting");
-const { HOTLINE } = require("../responses/prompts");
+const { getHotline } = require("../hotline");
 
 const POSTBACK_REPLIES = {
-  CALL_SUPPORT: `Bạn có thể gọi hotline ${HOTLINE} để được hỗ trợ nhanh nhất. Cảm ơn bạn!`,
+  // Hotline theo từng trang (bida: 0961 167 717, khác: 0798893333)
+  CALL_SUPPORT: (page) => `Bạn có thể gọi hotline ${getHotline(page)} để được hỗ trợ nhanh nhất. Cảm ơn bạn!`,
   REQUEST_CONSULT: `Cảm ơn anh/chị! Để team SABO tư vấn sớm nhất, anh/chị cho em xin tên và SĐT hoặc email liên hệ nhé?`,
 };
 
@@ -28,7 +29,9 @@ async function handlePostback(page, senderId, payload) {
 
   if (POSTBACK_REPLIES[payload]) {
     logger.info("postback_handled", { pageId: page.id, senderId, payload });
-    await sendText(page.id, page.accessToken, senderId, POSTBACK_REPLIES[payload]);
+    const reply = POSTBACK_REPLIES[payload];
+    const replyText = typeof reply === "function" ? reply(page) : reply;
+    await sendText(page.id, page.accessToken, senderId, replyText);
     return;
   }
 

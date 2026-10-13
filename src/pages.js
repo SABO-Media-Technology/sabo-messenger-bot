@@ -3,6 +3,8 @@
  * SSoT aligned with empire: BRAND_CONTENT_MAP, seed-projects, social-channels.yaml
  */
 
+const { BIDA_HOTLINE } = require("./hotline");
+
 const PAGE_DEFINITIONS = [
   {
     id: "840807759121010",
@@ -97,7 +99,7 @@ const PAGE_DEFINITIONS = [
     replyStrategy: "rag-mini",
     tier: "t0",
     websiteUrl: "https://saboarena.com",
-    hotline: "0798893333",
+    hotline: BIDA_HOTLINE, // bida page — hotline theo Dify SSoT
     ragTags: ["billiards", "giải đấu", "sabo arena", "bida"],
   },
   {
@@ -133,7 +135,7 @@ const PAGE_DEFINITIONS = [
     replyStrategy: "human-handoff",
     tier: "t2",
     websiteUrl: "https://sabobilliards.com",
-    hotline: "0798893333",
+    hotline: BIDA_HOTLINE, // bida page — hotline theo Dify SSoT
     ragTags: ["billiards", "bida", "vũng tàu", "sabo billiards"],
   },
 ];

@@ -19,7 +19,9 @@ const { buildPricingPolicyPromptBlock } = require("../sales/pricing-policy");
 
 
 
-const HOTLINE = "0798893333";
+const { DEFAULT_HOTLINE, applyHotline } = require("../hotline");
+// Back-compat: HOTLINE = hotline mặc định (trang không phải bida). Dùng getHotline(page) cho từng trang.
+const HOTLINE = DEFAULT_HOTLINE;
 
 
 
@@ -69,7 +71,7 @@ QUY TẮC CHUNG:
 
 ${PHONE_GROUND_TRUTH}
 
-- Chỉ đưa hotline ${HOTLINE} khi khách HỎI RÕ "số hotline", "số văn phòng", "liên hệ trực tiếp".
+- Chỉ đưa hotline {{HOTLINE}} khi khách HỎI RÕ "số hotline", "số văn phòng", "liên hệ trực tiếp".
 
 - Không bịa fact; nếu không chắc → hỏi thêm hoặc xin contact để team phản hồi.
 
@@ -123,7 +125,7 @@ NGỮ CẢNH TRANG: ${projectCtx}
 
 
 
-${SHARED_RULES}`;
+${applyHotline(SHARED_RULES, page)}`;
 
 
 

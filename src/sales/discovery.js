@@ -161,6 +161,14 @@ function buildScopeReply(page, sessionMeta, userText = "", scopeType = "web-lead
   const opener = pickOpener(address, seed);
   const verticalId = getVerticalId(page);
 
+  if (verticalId === "billiards-ops") {
+    const lines = [
+      `${opener} Bên em có app SABO Arena hỗ trợ tổ chức giải đấu bida online: tạo giải tự động (DE16, DE32), bảng xếp hạng ELO, cấp quỹ thưởng SPA và quản lý bàn bida. Anh/chị đang quan tâm tổ chức giải hay đặt bàn CLB ạ?`,
+      `${opener} App SABO Arena giúp CLB bida đăng ký giải online thay vì ghi chép thủ công, có sẵn sơ đồ thi đấu và tích hợp quản lý quán. Anh/chị muốn tìm hiểu tính năng giải đấu hay đặt bàn bida ạ?`,
+    ];
+    return lines[seed % lines.length];
+  }
+
   if (verticalId === "ai-education") {
     const lines = [
       `${opener} Lộ trình học AI cơ bản thường gồm: làm quen ChatGPT → viết prompt thực chiến → tạo ảnh AI & workflow cho công việc. Anh/chị muốn bắt đầu từ phần nào ạ?`,
@@ -175,10 +183,6 @@ function buildScopeReply(page, sessionMeta, userText = "", scopeType = "web-lead
       `${opener} Em gợi scope web SME: 3–5 trang (home, dịch vụ, liên hệ), form thu SĐT, kết nối Zalo, hosting + SSL. Làm nhanh ~3–4 tuần, full giỏ hàng ~6–8 tuần. Anh/chị ưu tiên thu lead hay bán online trước ạ?`,
     ];
     return lines[seed % lines.length];
-  }
-
-  if (verticalId === "billiards-ops") {
-    return `${opener} Scope app giải billiards: đăng ký giải online, bracket tự động, thông báo kết quả — pilot ~4–6 tuần. Anh/chị muốn đặt bàn hay triển khai app giải trước ạ?`;
   }
 
   return buildDiscoveryReply(page, sessionMeta, userText);

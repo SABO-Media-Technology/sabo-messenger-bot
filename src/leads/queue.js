@@ -2,7 +2,7 @@ const axios = require("axios");
 const { logger } = require("../utils/logger");
 const { detectHotLead } = require("../ai/intent");
 const { extractPhone } = require("./extract");
-const { HOTLINE } = require("../responses/prompts");
+const { getHotline } = require("../hotline");
 
 /**
  * Async lead capture — Supabase `leads` + optional Telegram notify.
@@ -109,20 +109,42 @@ async function queueLeadEvent({ page, senderId, userText, replyLayer, profile = 
     const leadId = Array.isArray(rows) ? rows[0]?.id : rows?.id;
     logger.info("lead_queued", { leadId, source, hot });
 
-    const icon = hot ? "🔥" : "📩";
-    const nameLine = profile?.name ? `Tên: ${profile.name}\n` : "";
-    const emailLine = profile?.email ? `📧 ${profile.email}\n` : "";
-    const needLine = profile?.need ? `Nhu cầu: ${profile.need.slice(0, 120)}\n` : "";
+    // Also sync to unified CRM leads table
+    const leadEmail = profile?.email || (phone ? `lead-${phone.replace(/\D/g, '')}@messenger.sabo.vn` : `lead-${senderId}@messenger.sabo.vn`);
+    const leadRow = {
+      name: profile?.name || "Khách Messenger",
+      full_name: profile?.name || "Khách Messenger",
+      phone: phone || null,
+      email: leadEmail,
+      message: userText.slice(0, 500),
+      main_pain: profile?.need || userText.slice(0, 500),
+      source,
+      lead_status: complete ? (hot ? "hot_lead" : "qualified") : (hot ? "hot_lead" : "new_lead"),
+      lead_score: complete ? (hot ? 85 : 65) : (hot ? 75 : 40),
+      submitted_at: new Date().toISOString(),
+    };
+    supabaseRest("leads", {
+      method: "POST",
+      body: leadRow,
+      prefer: "return=minimal",
+    }).catch((err) => logger.warn("supabase_leads_sync_failed", { error: err.message }));
+
+    const cleanPhone = phone ? phone.replace(/\D/g, "") : "";
+    const zaloLink = cleanPhone ? `https://zalo.me/${cleanPhone}` : "";
+    const badge = hot ? "🔴 [HOT LEAD — GỌI NGAY TRONG 5 PHÚT]" : "🟡 [WARM LEAD — TIỀM NĂNG]";
+
     await notifyTelegram(
-      `${icon} Messenger lead${complete ? " ✅ đủ field" : ""} — ${page.name}\n` +
-        `Project: ${page.projectSlug} · Tier: ${page.tier}\n` +
-        nameLine +
-        `PSID: ${senderId}\n` +
-        (phone ? `📞 ${phone}\n` : "") +
-        emailLine +
-        needLine +
-        `\n${userText.slice(0, 200)}\n\n` +
-        `→ sales_concierge / hotline ${HOTLINE}`,
+      `${badge}\n` +
+      `━━━━━━━━━━━━━━━━━━\n` +
+      `🏢 Fanpage: ${page.name}\n` +
+      `👤 Khách hàng: ${profile?.name || "Khách Messenger"} (PSID: ${senderId})\n` +
+      (phone ? `📞 SĐT: ${phone}\n` : "") +
+      (profile?.email ? `📧 Email: ${profile.email}\n` : "") +
+      `🎯 Nhu cầu: ${(profile?.need || userText).slice(0, 150)}\n` +
+      `🏆 Điểm Lead: ${leadRow.lead_score}/100\n` +
+      `━━━━━━━━━━━━━━━━━━\n` +
+      (cleanPhone ? `👉 Nhắn Zalo: ${zaloLink}\n` : "") +
+      `⚡ Sẵn sàng chốt khách trên Meta Inbox hoặc Hotline ${getHotline(page)}`
     );
 
     return { stored: true, leadId };

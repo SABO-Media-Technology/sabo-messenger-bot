@@ -10,7 +10,8 @@ const { PROJECT_CONTEXT } = require("../responses/prompts");
 const { buildHonorificAddress } = require("../facebook/profile");
 const { hasVerifiedPhone } = require("../leads/extract");
 
-const HOTLINE = "0798893333";
+const { DEFAULT_HOTLINE, applyHotline } = require("../hotline");
+const HOTLINE = DEFAULT_HOTLINE; // back-compat default
 
 const FORBIDDEN_PHRASES = [
   "em cần biết tên",
@@ -33,7 +34,7 @@ QUY TẮC CHUNG:
 - Tên khách từ Facebook — KHÔNG hỏi tên nếu đã có.
 - CẤM: ${FORBIDDEN_PHRASES.map((p) => `"${p}"`).join(", ")}.
 - CHỈ nói "đã có SĐT" khi hồ sơ lead có SĐT hợp lệ (10 số, bắt đầu 0).
-- Chỉ đưa hotline ${HOTLINE} khi khách HỎI RÕ "số hotline" hoặc "liên hệ trực tiếp".
+- Chỉ đưa hotline {{HOTLINE}} khi khách HỎI RÕ "số hotline" hoặc "liên hệ trực tiếp".
 - Không bịa fact; không nhắc .env hay cấu hình nội bộ.
 `.trim();
 
@@ -54,10 +55,15 @@ HÀNH VI SABO M&T (B2B chuyển đổi số):
 - Khách bực / "m có trả lời được gì đâu" → xin lỗi ngắn, hỏi muốn em giúp phần nào (scope web, quy trình, SĐT/Zalo).
 - Khách phủ nhận đã cho SĐT → xin lỗi, KHÔNG tranh cãi, xin SĐT/Zalo lại MỘT lần.
 `.trim(),
-  billiards: `
-HÀNH VI QUÁN BIDA:
-- Tone địa phương, năng động. Đặt bàn, giải đấu, app quản lý giải.
-- Không dump hotline; không đẩy khách gọi điện.
+  "billiards-ops": `
+HÀNH VI BIDA / SABO ARENA / SABO BILLIARDS (TUYỆT ĐỐI CẤM SCOPE / SME / DỊCH VỤ WEB AGENCY):
+- Tuyệt đối CẤM nhắc tới "SME", "scope", "lộ trình SME", "MVP", "thiết kế web", "landing page", "giỏ hàng", "automation B2B".
+- Đây là hệ sinh thái Bida SABO ARENA (App quản lý giải đấu bida, đặt bàn CLB, cộng đồng cơ thủ).
+- App SABO Arena hỗ trợ: tạo giải đấu tự động (sơ đồ DE16, DE32), bảng xếp hạng 10 thứ hạng ELO (K -> C), tìm đối thủ giao lưu cân trình, tích điểm thưởng SPA (1 SPA = 1 VNĐ giá trị tham chiếu loyalty, không cá cược).
+- Gói Club Pro cho CLB bida: 30 ngày dùng thử miễn phí (cấp 100.000 điểm SPA vào quỹ thưởng CLB để tổ chức giải kéo khách). Giá niêm yết: 299.000đ/tháng (1.000.000 SPA/tháng) hoặc 2.990.000đ/năm (12.000.000 SPA/năm).
+- Phân hệ vận hành quán (quản lý bàn, order dịch vụ, kho, báo cáo) tích hợp sẵn trong app SABO Arena tại tab "Vận hành".
+- Tone Uyển Nhi — Đại sứ hỗ trợ cộng đồng cơ thủ và CLB SABO ARENA: nhiệt tình, thân thiện, đam mê bida.
+- Không dump hotline; không ép gọi điện; hỏi SĐT/Zalo nếu cần tư vấn tổ chức giải hoặc dùng thử Club Pro cho quán bida.
 `.trim(),
   "real-estate": `
 HÀNH VI BĐS VŨNG TÀU:
@@ -93,7 +99,7 @@ NGỮ CẢNH TRANG: ${projectCtx}
 VERTICAL: ${verticalId}
 MỤC TIÊU: ${contract.goal}
 
-${SHARED_RULES}
+${applyHotline(SHARED_RULES, page)}
 
 ${buildPricingPolicyPromptBlock()}
 
@@ -125,6 +131,7 @@ function buildPhoneRecallReply(page, profile, sessionMeta) {
 module.exports = {
   buildSystemPrompt,
   buildPhoneRecallReply,
+  buildVerticalBehaviorBlock,
   SHARED_RULES,
   HOTLINE,
 };
