@@ -99,7 +99,7 @@ const PAGE_DEFINITIONS = [
     replyStrategy: "rag-mini",
     tier: "t0",
     websiteUrl: "https://saboarena.com",
-    hotline: BIDA_HOTLINE, // bida page — hotline theo Dify SSoT
+    hotline: BIDA_HOTLINE, // bida page — hotline theo SSoT
     ragTags: ["billiards", "giải đấu", "sabo arena", "bida"],
   },
   {
@@ -135,7 +135,7 @@ const PAGE_DEFINITIONS = [
     replyStrategy: "human-handoff",
     tier: "t2",
     websiteUrl: "https://sabobilliards.com",
-    hotline: BIDA_HOTLINE, // bida page — hotline theo Dify SSoT
+    hotline: BIDA_HOTLINE, // bida page — hotline theo SSoT
     ragTags: ["billiards", "bida", "vũng tàu", "sabo billiards"],
   },
 ];
