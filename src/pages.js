@@ -11,6 +11,8 @@ const PAGE_DEFINITIONS = [
     slug: "SABO_DESIGN",
     name: "SABO Design - Thiết Kế Logo Poster Giá Rẻ",
     tokenEnv: "PAGE_ACCESS_TOKEN_SABO_DESIGN",
+    instagramId: "17841421361351034",
+    instagramUsername: "__sabodesign",
     projectSlug: "sabo-mt",
     replyStrategy: "sabo-mt",
     tier: "t0",
@@ -71,6 +73,8 @@ const PAGE_DEFINITIONS = [
     slug: "AI_ART_NEWBIE",
     name: "AI Art Newbie",
     tokenEnv: "PAGE_ACCESS_TOKEN_AI_ART_NEWBIE",
+    instagramId: "17841472996653110",
+    instagramUsername: "lsfusionlab",
     projectSlug: "ai-art",
     replyStrategy: "rag-mini",
     tier: "t1",
@@ -83,6 +87,8 @@ const PAGE_DEFINITIONS = [
     slug: "BDS_VUNGTAU",
     name: "BĐS VŨNG TÀU",
     tokenEnv: "PAGE_ACCESS_TOKEN_BDS_VUNGTAU",
+    instagramId: "17841472735138532",
+    instagramUsername: "thosan.hoanghon",
     projectSlug: "vungtau",
     replyStrategy: "rag-mini",
     tier: "t1",
@@ -95,6 +101,8 @@ const PAGE_DEFINITIONS = [
     slug: "APP_BILLIARDS",
     name: "App Quản lý Giải Đấu Billiards",
     tokenEnv: "PAGE_ACCESS_TOKEN_APP_BILLIARDS",
+    instagramId: "17841472893889754",
+    instagramUsername: "saboarenaapp",
     projectSlug: "sabo-arena",
     replyStrategy: "rag-mini",
     tier: "t0",
@@ -103,10 +111,52 @@ const PAGE_DEFINITIONS = [
     ragTags: ["billiards", "giải đấu", "sabo arena", "bida"],
   },
   {
+    id: "719273174600166",
+    slug: "SABO_ARENA_PAGE",
+    name: "SABO ARENA",
+    tokenEnv: "PAGE_ACCESS_TOKEN_SABO_ARENA",
+    instagramId: "17841416019280177",
+    instagramUsername: "saboarena",
+    projectSlug: "sabo-arena",
+    replyStrategy: "rag-mini",
+    tier: "t0",
+    websiteUrl: "https://saboarena.com",
+    hotline: BIDA_HOTLINE,
+    ragTags: ["sabo arena", "billiards", "giải đấu", "bida", "xếp hạng"],
+  },
+  {
+    id: "981040798421726",
+    slug: "UYEN_NHI_BIDA",
+    name: "Uyển Nhi - Billiards",
+    tokenEnv: "PAGE_ACCESS_TOKEN_UYEN_NHI_BIDA",
+    instagramId: "17841459316312354",
+    instagramUsername: "uyennhi03._",
+    projectSlug: "sabo-arena",
+    replyStrategy: "rag-mini",
+    tier: "t0",
+    websiteUrl: "https://saboarena.com",
+    hotline: BIDA_HOTLINE,
+    ragTags: ["uyển nhi", "billiards", "bida", "sabo arena"],
+  },
+  {
+    id: "1284910878042165",
+    slug: "TAM_SU_UYEN_NHI",
+    name: "Tâm Sự Cùng Uyển Nhi",
+    tokenEnv: "PAGE_ACCESS_TOKEN_TAM_SU_UYEN_NHI",
+    projectSlug: "sabo-arena",
+    replyStrategy: "rag-mini",
+    tier: "t0",
+    websiteUrl: "https://saboarena.com",
+    hotline: BIDA_HOTLINE,
+    ragTags: ["tâm sự cùng uyển nhi", "uyển nhi", "billiards"],
+  },
+  {
     id: "569671719553461",
     slug: "AI_NEWBIE_VN",
     name: "AI Newbie VN",
     tokenEnv: "PAGE_ACCESS_TOKEN_AI_NEWBIE_VN",
+    instagramId: "17841474205608601",
+    instagramUsername: "ainewbievn",
     projectSlug: "ainewbie",
     replyStrategy: "rag-mini",
     tier: "t1",
@@ -119,6 +169,8 @@ const PAGE_DEFINITIONS = [
     slug: "SABO_MEDIA",
     name: "SABO Media & Technology",
     tokenEnv: "PAGE_ACCESS_TOKEN_SABO_MEDIA",
+    instagramId: "17841472718907470",
+    instagramUsername: "sabomete",
     projectSlug: "sabo-mt",
     replyStrategy: "sabo-mt",
     tier: "t0",
@@ -131,6 +183,8 @@ const PAGE_DEFINITIONS = [
     slug: "SABO_BILLIARDS",
     name: "SABO Billiards - TP. Vũng Tàu",
     tokenEnv: "PAGE_ACCESS_TOKEN_SABO_BILLIARDS",
+    instagramId: "17841474279844606",
+    instagramUsername: "sabobilliard",
     projectSlug: "sabo-billiards",
     replyStrategy: "human-handoff",
     tier: "t2",
@@ -146,7 +200,15 @@ const pageRegistry = {};
 function loadPageRegistry() {
   for (const def of PAGE_DEFINITIONS) {
     const accessToken = process.env[def.tokenEnv] || null;
-    pageRegistry[def.id] = { ...def, accessToken };
+    const pageObj = { ...def, accessToken };
+    pageRegistry[def.id] = pageObj;
+    if (def.instagramId) {
+      pageRegistry[def.instagramId] = {
+        ...pageObj,
+        isInstagram: true,
+        parentPageId: def.id,
+      };
+    }
   }
   return pageRegistry;
 }
@@ -156,7 +218,7 @@ function getPage(pageId) {
 }
 
 function getAllPages() {
-  return Object.values(pageRegistry);
+  return PAGE_DEFINITIONS.map((def) => pageRegistry[def.id] || def);
 }
 
 function getPagesWithToken() {

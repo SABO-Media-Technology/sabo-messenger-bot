@@ -303,7 +303,13 @@ async function testBilliardsNoAgencyScopeLeak() {
   const { buildSystemPrompt } = require("../src/ai/prompt-builder");
   const { selectDifyAppToken } = require("../src/ai/dify-client");
 
-  const billiardsPageIds = ["569652129566651", "118356497898536"];
+  const billiardsPageIds = [
+    "569652129566651",
+    "118356497898536",
+    "719273174600166",
+    "981040798421726",
+    "1284910878042165",
+  ];
 
   for (const pid of billiardsPageIds) {
     const bPage = getPage(pid);

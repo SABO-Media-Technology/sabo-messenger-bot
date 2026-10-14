@@ -352,8 +352,13 @@ function testPerPageHotline() {
   const { POSTBACK_REPLIES } = require("../src/handlers/welcome");
   const { HOTLINE_RULE } = require("../src/ai/templates");
   const { buildSystemPrompt } = require("../src/ai/prompt-builder");
-  const BIDA_IDS = ["569652129566651", "118356497898536"]; // App Quản lý Giải Đấu Billiards, SABO Billiards Vũng Tàu
-  assert(BIDA_HOTLINE === "0961 167 717", "bida hotline value");
+  const BIDA_IDS = [
+    "569652129566651", // App Quản lý Giải Đấu Billiards
+    "118356497898536", // SABO Billiards Vũng Tàu
+    "719273174600166", // SABO ARENA
+    "981040798421726", // Uyển Nhi - Billiards
+    "1284910878042165", // Tâm Sự Cùng Uyển Nhi
+  ];
   assert(DEFAULT_HOTLINE === "0798893333", "default hotline value");
   for (const def of PAGE_DEFINITIONS) {
     const expected = BIDA_IDS.includes(def.id) ? BIDA_HOTLINE : DEFAULT_HOTLINE;
