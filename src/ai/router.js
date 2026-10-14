@@ -229,7 +229,7 @@ async function generateReply(page, senderId, userText) {
     return { text: fb, layer: "fallback-no-llm" };
   }
 
-  const replyMode = (process.env.CUSTOMER_REPLY_MODE || "dify").toLowerCase();
+  const replyMode = (process.env.CUSTOMER_REPLY_MODE || "llm").toLowerCase();
 
   // If set explicitly to intake-only, use fixed safe template
   if (replyMode === "intake-only") {

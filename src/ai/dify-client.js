@@ -25,7 +25,7 @@ function normalizeBaseUrl(url) {
 }
 
 function isDifyEnabled() {
-  return process.env.DIFY_ENABLED !== "false";
+  return process.env.DIFY_ENABLED === "true";
 }
 
 /**
