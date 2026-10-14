@@ -66,47 +66,73 @@ router.post("/", async (req, res) => {
 
 
 
-  if (body.object !== "page") {
-
+  if (body.object !== "page" && body.object !== "instagram") {
     return res.sendStatus(404);
-
   }
-
-
 
   // Respond immediately — Facebook requires 200 within 20s
-
   res.sendStatus(200);
 
-
-
   for (const entry of body.entry || []) {
-
     const pageId = entry.id;
 
-
-
     for (const event of entry.messaging || []) {
-
       processEvent(pageId, event).catch((err) => {
-
         logger.error("event_processing_failed", {
-
           pageId,
-
           error: err.message,
-
           stack: err.stack,
-
         });
-
       });
-
     }
 
+    // Process Post Comments (Feed changes)
+    for (const change of entry.changes || []) {
+      if (change.field === "feed" && change.value?.item === "comment" && change.value?.verb === "add") {
+        processCommentEvent(pageId, change.value).catch((err) => {
+          logger.error("comment_processing_failed", {
+            pageId,
+            error: err.message,
+          });
+        });
+      }
+    }
   }
-
 });
+
+async function processCommentEvent(pageId, commentValue) {
+  const page = getPage(pageId);
+  if (!page || !page.accessToken) return;
+
+  const commentId = commentValue.comment_id;
+  const senderId = commentValue.from?.id || commentValue.sender_id;
+  const senderName = commentValue.from?.name || commentValue.sender_name || "anh/chị";
+  const userText = commentValue.message?.trim();
+
+  // Don't reply to page's own comments or empty messages
+  if (!commentId || !userText || senderId === pageId) return;
+
+  logger.info("comment_received", { pageId, commentId, senderName, userText });
+
+  const { replyComment, sendPrivateReplyToComment } = require("./utils/sender");
+
+  // 1. Public Reply on the post
+  const publicReply = `Dạ em chào ${senderName}! Em là Uyển Nhi bên SABO đây ạ 🎱 Em đã gửi thông tin tư vấn chi tiết qua inbox cho mình rồi nhé, anh/chị kiểm tra tin nhắn chờ giúp em nha! Hoặc nhắn trực tiếp Zalo em 0329 640 232 nhé ạ! ✨`;
+  await replyComment(commentId, page.accessToken, publicReply).catch((err) => {
+    logger.warn("comment_public_reply_failed", { commentId, error: err.message });
+  });
+
+  // 2. Private Reply to customer inbox via Meta Send API
+  const { generateReply } = require("./ai/router");
+  try {
+    const aiResult = await generateReply(page, senderId, userText);
+    if (aiResult?.text) {
+      await sendPrivateReplyToComment(pageId, page.accessToken, commentId, aiResult.text);
+    }
+  } catch (err) {
+    logger.warn("comment_private_reply_failed", { commentId, error: err.message });
+  }
+}
 
 
 

@@ -159,8 +159,47 @@ async function setupAllPages(pages) {
   return results;
 }
 
+/**
+ * Reply to a public post comment.
+ */
+async function replyComment(commentId, accessToken, text) {
+  if (shouldSkipDuplicateSend(commentId, text)) {
+    logger.info("comment_reply_deduped", { commentId });
+    return { deduped: true };
+  }
+  const url = `${GRAPH_BASE}/${commentId}/comments`;
+  const body = { message: text };
+  const { data } = await axios.post(url, body, {
+    params: { access_token: accessToken },
+  });
+  logger.info("comment_replied", { commentId, replyId: data.id });
+  return data;
+}
+
+/**
+ * Send a private message in response to a post comment.
+ */
+async function sendPrivateReplyToComment(pageId, accessToken, commentId, text) {
+  if (shouldSkipDuplicateSend(`private:${commentId}`, text)) {
+    logger.info("comment_private_reply_deduped", { commentId });
+    return { deduped: true };
+  }
+  const url = `${GRAPH_BASE}/${pageId}/messages`;
+  const body = {
+    recipient: { comment_id: commentId },
+    message: { text },
+  };
+  const { data } = await axios.post(url, body, {
+    params: { access_token: accessToken },
+  });
+  logger.info("comment_private_reply_sent", { pageId, commentId, messageId: data.message_id });
+  return data;
+}
+
 module.exports = {
   sendText,
+  replyComment,
+  sendPrivateReplyToComment,
   setGetStarted,
   setPersistentMenu,
   setupPageProfile,
